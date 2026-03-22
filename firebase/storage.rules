@@ -1,0 +1,20 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userTeamId() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.teamId;
+    }
+
+    match /teams/{teamId}/{allPaths=**} {
+      allow read: if signedIn() && teamId == userTeamId();
+      allow write: if signedIn()
+        && teamId == userTeamId()
+        && request.resource.size < 200 * 1024 * 1024
+        && request.resource.contentType.matches('video/.*|audio/.*|image/.*');
+    }
+  }
+}

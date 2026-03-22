@@ -1,24 +1,48 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { useEffect } from "react";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { initMobileAds } from "@/services/adsInit";
+import { ThemeProvider } from "@/theme/ThemeProvider";
+import { useAuthStore } from "@/store/authStore";
+import { useTeamStore } from "@/store/teamStore";
+import { useSettingsStore } from "@/store/settingsStore";
+import { openStemmDatabase } from "@/services/sqlite/database";
+import { registerBackgroundSync } from "@/services/sync/backgroundSync";
+import { registerPushToken } from "@/services/notifications";
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const initAuth = useAuthStore((s) => s.init);
+  const hydrateTeam = useTeamStore((s) => s.hydrate);
+  const hydrateSettings = useSettingsStore((s) => s.hydrate);
+
+  useEffect(() => {
+    const unsub = initAuth();
+    void hydrateTeam();
+    void hydrateSettings();
+    void openStemmDatabase();
+    void registerBackgroundSync().catch(() => {});
+    void initMobileAds();
+    void registerPushToken().catch(() => {});
+    const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 400);
+    return () => {
+      clearTimeout(t);
+      unsub();
+    };
+  }, [hydrateSettings, hydrateTeam, initAuth]);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="onboarding/team-wizard" />
+          <Stack.Screen name="(main)" />
+        </Stack>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
