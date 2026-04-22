@@ -1,11 +1,5 @@
-import { getDownloadURL, getStorage, ref, uploadBytesResumable } from "firebase/storage";
-import { getFirebaseApp } from "@/services/firebase/config";
-
-function storage() {
-  const app = getFirebaseApp();
-  if (!app) return null;
-  return getStorage(app);
-}
+const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
 export async function uploadLocalFile(params: {
   localUri: string;
@@ -13,24 +7,26 @@ export async function uploadLocalFile(params: {
   contentType: string;
   onProgress?: (fraction: number) => void;
 }): Promise<string> {
-  const s = storage();
-  if (!s) throw new Error("Firebase is not configured");
+  if (!CLOUD_NAME || !UPLOAD_PRESET) throw new Error("Cloudinary is not configured");
+
   const response = await fetch(params.localUri);
   const blob = await response.blob();
-  const r = ref(s, params.storagePath);
-  const task = uploadBytesResumable(r, blob, { contentType: params.contentType });
-  return new Promise((resolve, reject) => {
-    task.on(
-      "state_changed",
-      (snap) => {
-        const total = snap.totalBytes || 1;
-        params.onProgress?.(snap.bytesTransferred / total);
-      },
-      reject,
-      async () => {
-        const url = await getDownloadURL(task.snapshot.ref);
-        resolve(url);
-      },
-    );
-  });
+
+  const formData = new FormData();
+  formData.append("file", blob);
+  formData.append("upload_preset", UPLOAD_PRESET);
+  formData.append("public_id", params.storagePath); // keeps the same path structure
+
+  const uploadResponse = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!uploadResponse.ok) throw new Error("Cloudinary upload failed");
+
+  const data = await uploadResponse.json();
+  return data.secure_url; // this is the download URL
 }
