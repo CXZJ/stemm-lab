@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
-import { StemButton } from "@/components/ui/StemButton";
+import { Picker } from "@react-native-picker/picker";
 import { StemCard } from "@/components/ui/StemCard";
 import { StemText } from "@/components/ui/StemText";
 import { Screen } from "@/components/ui/Screen";
@@ -58,16 +58,33 @@ export default function LeaderboardScreen() {
         Filter by activity and compare with other teams in your grade (when online and Firebase is
         configured).
       </StemText>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+      <View
+      style={{
+        borderWidth: 1,
+        borderColor: t.colors.muted,
+        borderRadius: 10,
+        marginBottom: 16,
+        overflow: "hidden",
+      }}
+    >
+      <Picker
+        selectedValue={activityId}
+        onValueChange={(value) => setActivityId(value)}
+        style={{
+          color: t.colors.text,
+          backgroundColor: t.colors.bg,
+          height: 56,        // 👈 taller touch target
+          fontSize: 16,      // 👈 bigger text
+        }}
+        dropdownIconColor={t.colors.muted}
+        itemStyle={{ fontSize: 16, height: 56 }} // 👈 for iOS
+      >
         {ALL_ACTIVITIES.map((a) => (
-          <StemButton
-            key={a.id}
-            title={a.title.slice(0, 14) + (a.title.length > 14 ? "…" : "")}
-            variant={activityId === a.id ? "primary" : "secondary"}
-            onPress={() => setActivityId(a.id)}
-          />
+          <Picker.Item key={a.id} label={a.title} value={a.id} />
         ))}
-      </View>
+      </Picker>
+    </View>
+
       {localBest && act ? (
         <StemCard title="Your team (on device)">
           <StemText variant="body">
