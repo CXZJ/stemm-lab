@@ -1,4 +1,5 @@
 import { Screen } from "@/components/ui/Screen";
+import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemCard } from "@/components/ui/StemCard";
 import { StemText } from "@/components/ui/StemText";
 import { SyncStatusBadge } from "@/components/ui/SyncStatusBadge";
@@ -179,42 +180,7 @@ export default function HomeScreen() {
   );
 }
 
-function SpeakButton({
-  id,
-  text,
-  isSpeaking,
-  onPress,
-}: {
-  id: string;
-  text: string;
-  isSpeaking: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      accessibilityLabel={isSpeaking ? "Stop reading" : "Read aloud"}
-      style={[styles.speakButton, isSpeaking && styles.speakButtonActive]}
-    >
-      <StemText variant="small" style={{ color: "#fff" }}>
-        {isSpeaking ? "⏹ Stop" : "🔊 Read aloud"}
-      </StemText>
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
-  speakButton: {
-    backgroundColor: "#2e86de",
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    alignSelf: "flex-start",
-    marginTop: 10,
-  },
-  speakButtonActive: {
-    backgroundColor: "#c0392b",
-  },
   stopAll: {
     backgroundColor: "#555",
     borderRadius: 10,

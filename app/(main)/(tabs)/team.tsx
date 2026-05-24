@@ -1,14 +1,17 @@
 import { Screen } from "@/components/ui/Screen";
+import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemButton } from "@/components/ui/StemButton";
 import { StemCard } from "@/components/ui/StemCard";
 import { StemText } from "@/components/ui/StemText";
+import { useSpeech } from "@/hooks/useSpeech";
+import { useSettingsStore } from "@/store/settingsStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useStemTheme } from "@/theme/ThemeProvider";
 import { Profanity } from "@2toad/profanity";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { StyleSheet, TextInput } from "react-native";
+import { StyleSheet, TextInput, TouchableOpacity } from "react-native";
 import { z } from "zod";
 
 const profanity = new Profanity({ languages: ["en", "de"] });
@@ -38,6 +41,8 @@ export default function TeamScreen() {
   const t = useStemTheme();
   const team = useTeamStore((s) => s.team);
   const updateTeam = useTeamStore((s) => s.updateTeam);
+  const ttsEnabled = useSettingsStore((s) => s.ttsEnabled);
+  const { speak, stop, isSpeaking, speakingId } = useSpeech();
   const {
     control,
     reset,
@@ -69,7 +74,25 @@ export default function TeamScreen() {
   return (
     <Screen>
       <StemText variant="h1">Team profile</StemText>
-      <StemCard title="Team code">
+
+      <StemCard
+        title="Team code"
+        footer={
+          ttsEnabled ? (
+            <SpeakButton
+              id="team-code"
+              text={`Your team code is ${team.discriminator}. Share this code with your teacher to identify submissions.`}
+              isSpeaking={isSpeaking("team-code")}
+              onPress={() =>
+                speak(
+                  "team-code",
+                  `Your team code is ${team.discriminator}. Share this code with your teacher to identify submissions.`,
+                )
+              }
+            />
+          ) : null
+        }
+      >
         <StemText variant="h2" accessibilityLabel={`Team code ${team.discriminator}`}>
           {team.discriminator}
         </StemText>
@@ -77,7 +100,25 @@ export default function TeamScreen() {
           Share this code with your teacher to identify submissions.
         </StemText>
       </StemCard>
-      <StemCard title="Edit team">
+
+      <StemCard
+        title="Edit team"
+        footer={
+          ttsEnabled ? (
+            <SpeakButton
+              id="team-info"
+              text={`Team name: ${team.name}. Grade level: ${team.gradeLevel}. Members: ${team.memberNames.join(", ")}.`}
+              isSpeaking={isSpeaking("team-info")}
+              onPress={() =>
+                speak(
+                  "team-info",
+                  `Team name: ${team.name}. Grade level: ${team.gradeLevel}. Members: ${team.memberNames.join(", ")}.`,
+                )
+              }
+            />
+          ) : null
+        }
+      >
         <StemText variant="body">Team name</StemText>
         <Controller
           control={control}
@@ -162,6 +203,14 @@ export default function TeamScreen() {
           })}
         />
       </StemCard>
+
+      {ttsEnabled && speakingId && (
+        <TouchableOpacity style={styles.stopAll} onPress={stop}>
+          <StemText variant="body" style={{ color: "#fff" }}>
+            ⏹ Stop reading
+          </StemText>
+        </TouchableOpacity>
+      )}
     </Screen>
   );
 }
@@ -178,5 +227,12 @@ const styles = StyleSheet.create({
   error: {
     color: "#ff4d4d",
     marginTop: 4,
+  },
+  stopAll: {
+    backgroundColor: "#555",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 8,
   },
 });

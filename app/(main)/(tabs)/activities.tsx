@@ -1,21 +1,26 @@
-import { useCallback, useEffect, useState } from "react";
-import { Pressable, View } from "react-native";
-import { useRouter } from "expo-router";
-import { href } from "@/navigation/href";
 import { ALL_ACTIVITIES } from "@/activities";
+import { Screen } from "@/components/ui/Screen";
+import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemCard } from "@/components/ui/StemCard";
 import { StemText } from "@/components/ui/StemText";
-import { Screen } from "@/components/ui/Screen";
 import { SyncStatusBadge } from "@/components/ui/SyncStatusBadge";
+import { useSpeech } from "@/hooks/useSpeech";
+import { href } from "@/navigation/href";
 import { listLocalAttempts } from "@/services/sqlite/attemptsLocal";
+import { useSettingsStore } from "@/store/settingsStore";
 import { useTeamStore } from "@/store/teamStore";
-import type { ActivityAttempt } from "@/types/models";
 import { useStemTheme } from "@/theme/ThemeProvider";
+import type { ActivityAttempt } from "@/types/models";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, StyleSheet, TouchableOpacity, View } from "react-native";
 
 export default function ActivitiesScreen() {
   const t = useStemTheme();
   const router = useRouter();
   const team = useTeamStore((s) => s.team);
+  const ttsEnabled = useSettingsStore((s) => s.ttsEnabled);
+  const { speak, stop, isSpeaking, speakingId } = useSpeech();
   const [byActivity, setByActivity] = useState<Record<string, ActivityAttempt[]>>({});
 
   const load = useCallback(async () => {
@@ -42,8 +47,24 @@ export default function ActivitiesScreen() {
       {ALL_ACTIVITIES.map((act) => {
         const attempts = byActivity[act.id] ?? [];
         const last = attempts[0];
+        const speakText = `${act.title}. Subject: ${act.subjectArea}. ${attempts.length} attempt${attempts.length !== 1 ? "s" : ""} stored on device.`;
+
         return (
-          <StemCard key={act.id} title={act.title} subtitle={act.subjectArea}>
+          <StemCard
+            key={act.id}
+            title={act.title}
+            subtitle={act.subjectArea}
+            footer={
+              ttsEnabled ? (
+                <SpeakButton
+                  id={act.id}
+                  text={speakText}
+                  isSpeaking={isSpeaking(act.id)}
+                  onPress={() => speak(act.id, speakText)}
+                />
+              ) : null
+            }
+          >
             <StemText variant="small" style={{ color: t.colors.muted, marginBottom: 8 }}>
               {attempts.length} attempt(s) stored on device
             </StemText>
@@ -78,6 +99,25 @@ export default function ActivitiesScreen() {
           </StemCard>
         );
       })}
+
+      {/* Global stop — only visible while something is playing */}
+      {ttsEnabled && speakingId && (
+        <TouchableOpacity style={styles.stopAll} onPress={stop}>
+          <StemText variant="body" style={{ color: "#fff" }}>
+            ⏹ Stop reading
+          </StemText>
+        </TouchableOpacity>
+      )}
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  stopAll: {
+    backgroundColor: "#555",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 8,
+  },
+});
