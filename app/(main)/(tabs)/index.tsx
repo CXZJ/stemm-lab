@@ -1,26 +1,30 @@
-import { useCallback, useEffect, useState } from "react";
-import { Pressable, View } from "react-native";
-import { Link, useRouter } from "expo-router";
-import { href } from "@/navigation/href";
+import { Screen } from "@/components/ui/Screen";
 import { StemCard } from "@/components/ui/StemCard";
 import { StemText } from "@/components/ui/StemText";
-import { Screen } from "@/components/ui/Screen";
 import { SyncStatusBadge } from "@/components/ui/SyncStatusBadge";
+import { useSpeech } from "@/hooks/useSpeech";
+import { href } from "@/navigation/href";
 import { listLocalAttempts } from "@/services/sqlite/attemptsLocal";
-import { processSyncQueueOnce, isOnline } from "@/services/sync/syncEngine";
-import { useTeamStore } from "@/store/teamStore";
+import { isOnline, processSyncQueueOnce } from "@/services/sync/syncEngine";
 import { useNotificationStore } from "@/store/notificationStore";
-import type { ActivityAttempt } from "@/types/models";
+import { useSettingsStore } from "@/store/settingsStore";
+import { useTeamStore } from "@/store/teamStore";
 import { useStemTheme } from "@/theme/ThemeProvider";
+import type { ActivityAttempt } from "@/types/models";
+import { Link, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, StyleSheet, TouchableOpacity, View } from "react-native";
 
 export default function HomeScreen() {
   const t = useStemTheme();
   const router = useRouter();
   const team = useTeamStore((s) => s.team);
   const notifs = useNotificationStore((s) => s.items);
+  const ttsEnabled = useSettingsStore((s) => s.ttsEnabled);
   const [recent, setRecent] = useState<ActivityAttempt[]>([]);
   const [online, setOnline] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const { speak, stop, isSpeaking, speakingId } = useSpeech();
 
   const load = useCallback(async () => {
     if (!team) return;
@@ -46,7 +50,21 @@ export default function HomeScreen() {
         </StemText>
       ) : null}
 
-      <StemCard title="Sync & network">
+      <StemCard
+        title="Sync & network"
+        footer={
+          ttsEnabled ? (
+            <SpeakButton
+              id="sync"
+              text={`Network status: ${online ? "Online" : "Offline, drafts stay on device"}.`}
+              isSpeaking={isSpeaking("sync")}
+              onPress={() =>
+                speak("sync", `Network status: ${online ? "Online" : "Offline, drafts stay on device"}.`)
+              }
+            />
+          ) : null
+        }
+      >
         <StemText variant="body">
           Network: {online ? "Online" : "Offline — drafts stay on device"}
         </StemText>
@@ -78,19 +96,55 @@ export default function HomeScreen() {
         title="Notifications"
         onPress={() => router.push(href("/(main)/notifications"))}
         footer={
-          unread > 0 ? (
-            <StemText variant="caption" style={{ color: t.colors.accent, marginTop: 8 }}>
-              {unread} unread
-            </StemText>
+          ttsEnabled ? (
+            <SpeakButton
+              id="notifs"
+              text={
+                unread > 0
+                  ? `You have ${unread} unread notification${unread > 1 ? "s" : ""}.`
+                  : "No unread notifications."
+              }
+              isSpeaking={isSpeaking("notifs")}
+              onPress={() =>
+                speak(
+                  "notifs",
+                  unread > 0
+                    ? `You have ${unread} unread notification${unread > 1 ? "s" : ""}.`
+                    : "No unread notifications.",
+                )
+              }
+            />
           ) : null
         }
       >
         <StemText variant="small" style={{ color: t.colors.muted }}>
           Challenges, leaderboard changes, and sync updates appear here.
         </StemText>
+        {unread > 0 ? (
+          <StemText variant="caption" style={{ color: t.colors.accent, marginTop: 8 }}>
+            {unread} unread
+          </StemText>
+        ) : null}
       </StemCard>
 
-      <StemCard title="Recent attempts">
+      <StemCard
+        title="Recent attempts"
+        footer={
+          ttsEnabled && recent.length > 0 ? (
+            <SpeakButton
+              id="recent"
+              text={`You have ${recent.length} recent attempt${recent.length > 1 ? "s" : ""}. Latest: ${recent[0].activityId}.`}
+              isSpeaking={isSpeaking("recent")}
+              onPress={() =>
+                speak(
+                  "recent",
+                  `You have ${recent.length} recent attempt${recent.length > 1 ? "s" : ""}. Latest: ${recent[0].activityId}.`,
+                )
+              }
+            />
+          ) : null
+        }
+      >
         {recent.length === 0 ? (
           <StemText variant="body">No attempts yet — start from the Activities tab.</StemText>
         ) : (
@@ -112,6 +166,60 @@ export default function HomeScreen() {
           ))
         )}
       </StemCard>
+
+      {/* Global stop button — only shown when something is speaking */}
+      {ttsEnabled && speakingId && (
+        <TouchableOpacity style={styles.stopAll} onPress={stop}>
+          <StemText variant="body" style={{ color: "#fff" }}>
+            ⏹ Stop reading
+          </StemText>
+        </TouchableOpacity>
+      )}
     </Screen>
   );
 }
+
+function SpeakButton({
+  id,
+  text,
+  isSpeaking,
+  onPress,
+}: {
+  id: string;
+  text: string;
+  isSpeaking: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      accessibilityLabel={isSpeaking ? "Stop reading" : "Read aloud"}
+      style={[styles.speakButton, isSpeaking && styles.speakButtonActive]}
+    >
+      <StemText variant="small" style={{ color: "#fff" }}>
+        {isSpeaking ? "⏹ Stop" : "🔊 Read aloud"}
+      </StemText>
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  speakButton: {
+    backgroundColor: "#2e86de",
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    alignSelf: "flex-start",
+    marginTop: 10,
+  },
+  speakButtonActive: {
+    backgroundColor: "#c0392b",
+  },
+  stopAll: {
+    backgroundColor: "#555",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 8,
+  },
+});
