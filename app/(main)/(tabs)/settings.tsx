@@ -1,15 +1,15 @@
-import { Link } from "expo-router";
-import { href } from "@/navigation/href";
-import { Switch, View } from "react-native";
+import { Screen } from "@/components/ui/Screen";
 import { StemButton } from "@/components/ui/StemButton";
 import { StemCard } from "@/components/ui/StemCard";
 import { StemText } from "@/components/ui/StemText";
-import { Screen } from "@/components/ui/Screen";
+import { href } from "@/navigation/href";
+import { isFirebaseConfigured } from "@/services/firebase/config";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTeamStore } from "@/store/teamStore";
-import { isFirebaseConfigured } from "@/services/firebase/config";
 import { useStemTheme } from "@/theme/ThemeProvider";
+import { Link } from "expo-router";
+import { Switch, View } from "react-native";
 
 export default function SettingsScreen() {
   const t = useStemTheme();
@@ -19,6 +19,8 @@ export default function SettingsScreen() {
   const setPrimary = useSettingsStore((s) => s.setPrimarySchoolMode);
   const themePref = useSettingsStore((s) => s.themePreference);
   const setThemePref = useSettingsStore((s) => s.setThemePreference);
+  const ttsEnabled = useSettingsStore((s) => s.ttsEnabled);
+  const setTtsEnabled = useSettingsStore((s) => s.setTtsEnabled);
   const clearTeam = useTeamStore((s) => s.clear);
 
   return (
@@ -33,6 +35,16 @@ export default function SettingsScreen() {
             value={primary}
             onValueChange={(v) => setPrimary(v)}
             accessibilityLabel="Primary school mode"
+          />
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", minHeight: 48, marginTop: 8 }}>
+          <StemText variant="body" style={{ flex: 1 }}>
+            Read aloud mode (shows 🔊 buttons across all tabs)
+          </StemText>
+          <Switch
+            value={ttsEnabled}
+            onValueChange={(v) => setTtsEnabled(v)}
+            accessibilityLabel="Read aloud mode"
           />
         </View>
       </StemCard>
