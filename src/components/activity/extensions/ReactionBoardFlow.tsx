@@ -1,37 +1,53 @@
-import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import Svg, { Circle, Path } from "react-native-svg";
+import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemButton } from "@/components/ui/StemButton";
 import { StemText } from "@/components/ui/StemText";
 import { useStemTheme } from "@/theme/ThemeProvider";
 import { minTouch } from "@/theme/tokens";
+import { useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import Svg, { Circle, Path } from "react-native-svg";
 
 type Phase = "intro" | "react_dom" | "react_other" | "trace" | "done";
 
 export function ReactionBoardFlow({
   simple,
   onUpdate,
+  ttsEnabled,
+  speak,
+  isSpeaking,
 }: {
   simple: boolean;
   onUpdate: (patch: Record<string, number | string>) => void;
+  ttsEnabled?: boolean;
+  speak?: (id: string, text: string) => void;
+  isSpeaking?: (id: string) => boolean;
 }) {
   const t = useStemTheme();
   const [phase, setPhase] = useState<Phase>("intro");
   const [traceScore, setTraceScore] = useState<number | null>(null);
 
+  const description = simple
+    ? "Tap when the target turns green. Try both hands. Then trace along the dotted line."
+    : "Measure reaction for dominant vs non-dominant hand, then complete the tracing task.";
+
   return (
     <View style={styles.box}>
       <StemText variant="h2">Reaction board</StemText>
       <StemText variant="small" style={{ color: t.colors.muted, marginBottom: 12 }}>
-        {simple
-          ? "Tap when the target turns green. Try both hands. Then trace along the dotted line."
-          : "Measure reaction for dominant vs non-dominant hand, then complete the tracing task."}
+        {description}
       </StemText>
+      {ttsEnabled && speak && isSpeaking && (
+        <SpeakButton
+          id="reaction-desc"
+          text={description}
+          isSpeaking={isSpeaking("reaction-desc")}
+          onPress={() => speak("reaction-desc", description)}
+        />
+      )}
 
       {phase === "intro" && (
         <StemButton title="Start" onPress={() => setPhase("react_dom")} />
       )}
-
       {phase === "react_dom" && (
         <ReactionTapPhase
           label={simple ? "Use your writing hand" : "Dominant hand"}
@@ -41,7 +57,6 @@ export function ReactionBoardFlow({
           }}
         />
       )}
-
       {phase === "react_other" && (
         <ReactionTapPhase
           label={simple ? "Use your other hand" : "Non-dominant hand"}
@@ -51,7 +66,6 @@ export function ReactionBoardFlow({
           }}
         />
       )}
-
       {phase === "trace" && (
         <TracePhase
           simple={simple}
@@ -62,7 +76,6 @@ export function ReactionBoardFlow({
           }}
         />
       )}
-
       {phase === "done" && (
         <StemText variant="body">
           {simple ? "Great job!" : "All phases saved to this attempt."} Trace score:{" "}
@@ -97,9 +110,7 @@ function ReactionTapPhase({
 
   return (
     <View>
-      <StemText variant="body" style={{ marginBottom: 8 }}>
-        {label}
-      </StemText>
+      <StemText variant="body" style={{ marginBottom: 8 }}>{label}</StemText>
       {!armed ? (
         <StemButton title="Ready — wait for green" onPress={arm} />
       ) : (
@@ -118,13 +129,7 @@ function ReactionTapPhase({
   );
 }
 
-function TracePhase({
-  simple,
-  onComplete,
-}: {
-  simple: boolean;
-  onComplete: (score: number) => void;
-}) {
+function TracePhase({ simple, onComplete }: { simple: boolean; onComplete: (score: number) => void }) {
   const [pts, setPts] = useState<{ x: number; y: number }[]>([]);
   const pathD = "M 20 120 Q 100 20 180 120 T 300 80";
 
@@ -137,9 +142,7 @@ function TracePhase({
   return (
     <View style={{ minHeight: 240 }}>
       <StemText variant="small" style={{ marginBottom: 6 }}>
-        {simple
-          ? "Tap and drag along the dotted path."
-          : "Trace the path; score rewards coverage along the guide."}
+        {simple ? "Tap and drag along the dotted path." : "Trace the path; score rewards coverage along the guide."}
       </StemText>
       <View style={styles.traceWrap}>
         <Pressable

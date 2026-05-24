@@ -1,17 +1,23 @@
-import { useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
-import { Audio } from "expo-av";
+import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemButton } from "@/components/ui/StemButton";
 import { StemText } from "@/components/ui/StemText";
 import { useStemTheme } from "@/theme/ThemeProvider";
+import { Audio } from "expo-av";
+import { useRef, useState } from "react";
+import { StyleSheet, View } from "react-native";
 
-/**
- * expo-av metering (often available on iOS). Values are labeled approximate unless you calibrate.
- */
+const WARNING_TEXT = "85 decibels or more sustained can risk hearing over time. Classroom peaks are usually brief — still avoid very loud tests near ears.";
+
 export function SoundMeterPanel({
   onUpdate,
+  ttsEnabled,
+  speak,
+  isSpeaking,
 }: {
   onUpdate: (patch: Record<string, number | string>) => void;
+  ttsEnabled?: boolean;
+  speak?: (id: string, text: string) => void;
+  isSpeaking?: (id: string) => boolean;
 }) {
   const t = useStemTheme();
   const [measuring, setMeasuring] = useState(false);
@@ -40,10 +46,7 @@ export function SoundMeterPanel({
         clearInterval(iv);
         await rec.stopAndUnloadAsync();
         setMeasuring(false);
-        onUpdate({
-          dbRaw: Math.round(lastDb.current * 10) / 10,
-          readingLabel: "approximate",
-        });
+        onUpdate({ dbRaw: Math.round(lastDb.current * 10) / 10, readingLabel: "approximate" });
       }, 3000);
     } catch {
       setMeasuring(false);
@@ -55,20 +58,25 @@ export function SoundMeterPanel({
     <View style={[styles.box, { borderColor: t.colors.border }]}>
       <StemText variant="h2">Sound sampler</StemText>
       <StemText variant="small" style={{ color: t.colors.muted }}>
-        ~85 dB+ sustained can risk hearing over time. Classroom peaks are usually brief — still avoid
-        very loud tests near ears.
+        ~85 dB+ sustained can risk hearing over time. Classroom peaks are usually brief — still avoid very loud tests near ears.
       </StemText>
-      <StemButton title={measuring ? "Sampling…" : "Sample 3 seconds"} onPress={start} disabled={measuring} />
+      {ttsEnabled && speak && isSpeaking && (
+        <SpeakButton
+          id="sound-warning"
+          text={WARNING_TEXT}
+          isSpeaking={isSpeaking("sound-warning")}
+          onPress={() => speak("sound-warning", WARNING_TEXT)}
+        />
+      )}
+      <StemButton
+        title={measuring ? "Sampling…" : "Sample 3 seconds"}
+        onPress={start}
+        disabled={measuring}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  box: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-    gap: 8,
-  },
+  box: { borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 16, gap: 8 },
 });

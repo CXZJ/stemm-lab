@@ -1,31 +1,33 @@
-import { useEffect, useMemo, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { Switch, TextInput, StyleSheet, View } from "react-native";
-import * as Location from "expo-location";
-import { useRouter } from "expo-router";
-import { href } from "@/navigation/href";
 import { getActivityConfig } from "@/activities";
 import { CameraCaptureModal } from "@/components/activity/CameraCaptureModal";
 import { BreathingFlow } from "@/components/activity/extensions/BreathingFlow";
 import { ReactionBoardFlow } from "@/components/activity/extensions/ReactionBoardFlow";
 import { RoomNoiseMap } from "@/components/activity/extensions/RoomNoiseMap";
 import { SoundMeterPanel } from "@/components/activity/extensions/SoundMeterPanel";
+import { Screen } from "@/components/ui/Screen";
+import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemButton } from "@/components/ui/StemButton";
 import { StemCard } from "@/components/ui/StemCard";
 import { StemText } from "@/components/ui/StemText";
-import { Screen } from "@/components/ui/Screen";
-import { useActivitySubmit, buildReflections } from "@/hooks/useActivitySubmit";
 import { useAccelSample } from "@/hooks/useAccelSample";
-import { newId } from "@/lib/id";
+import { buildReflections, useActivitySubmit } from "@/hooks/useActivitySubmit";
+import { useSpeech } from "@/hooks/useSpeech";
 import { runActivityCalculations } from "@/lib/calculations/runActivityCalculations";
+import { newId } from "@/lib/id";
+import { href } from "@/navigation/href";
 import { upsertLocalAttempt } from "@/services/sqlite/attemptsLocal";
+import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTeamStore } from "@/store/teamStore";
-import { useAuthStore } from "@/store/authStore";
-import type { ActivityConfig, CustomField } from "@/types/activity-config";
-import type { ActivityAttempt, SensorReading } from "@/types/models";
 import { useStemTheme } from "@/theme/ThemeProvider";
 import { minTouch } from "@/theme/tokens";
+import type { ActivityConfig, CustomField } from "@/types/activity-config";
+import type { ActivityAttempt, SensorReading } from "@/types/models";
+import * as Location from "expo-location";
+import { useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { StyleSheet, Switch, TextInput, TouchableOpacity, View } from "react-native";
 
 function buildDefaults(config: ActivityConfig): Record<string, string> {
   const d: Record<string, string> = {};
@@ -185,20 +187,20 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
   const team = useTeamStore((s) => s.team);
   const user = useAuthStore((s) => s.firebaseUser);
   const simple = useSettingsStore((s) => s.primarySchoolMode);
+  const ttsEnabled = useSettingsStore((s) => s.ttsEnabled);
   const config = getActivityConfig(activityId);
   const defaults = useMemo(() => (config ? buildDefaults(config) : {}), [config]);
   const { control, handleSubmit, reset } = useForm<Record<string, string>>({
     defaultValues: defaults,
   });
+  const { speak, stop, isSpeaking, speakingId } = useSpeech();
 
   useEffect(() => {
     if (config) reset(buildDefaults(config));
   }, [activityId, config, reset]);
 
   const [ext, setExt] = useState<Record<string, unknown>>({});
-  const [pendingMedia, setPendingMedia] = useState<
-    { localUri: string; kind: "photo" | "video" | "audio"; contentType: string }[]
-  >([]);
+  const [pendingMedia, setPendingMedia] = useState<{ localUri: string; kind: "photo" | "video" | "audio"; contentType: string }[]>([]);
   const [sensors, setSensors] = useState<SensorReading[]>([]);
   const [reflectionTexts, setReflectionTexts] = useState<Record<string, string>>({});
   const [stars, setStars] = useState(0);
@@ -300,14 +302,7 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
       reflections,
       ratings:
         stars > 0
-          ? [
-              {
-                id: await newId(),
-                attemptId,
-                stars,
-                createdAt: Date.now(),
-              },
-            ]
+          ? [{ id: await newId(), attemptId, stars, createdAt: Date.now() }]
           : [],
       comments:
         comment.trim().length > 0
@@ -353,6 +348,9 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
         ? parseFloat(ext.dbRaw)
         : null;
 
+  const instructionsText = simple ? config.instructionsSimple : config.instructions;
+  const equipmentText = `Equipment needed: ${config.equipment.join(", ")}.`;
+
   return (
     <Screen
       footer={
@@ -373,6 +371,7 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
       <StemText variant="small" style={{ color: t.colors.muted }}>
         {config.subjectArea}
       </StemText>
+
       {config.timer.showStopwatch !== false && (
         <StemCard>
           <StemText variant="body">
@@ -380,7 +379,10 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
             {(elapsed % 60).toString().padStart(2, "0")}
           </StemText>
           {limit != null && (
-            <StemText variant="caption" style={{ color: overLimit ? t.colors.danger : t.colors.muted }}>
+            <StemText
+              variant="caption"
+              style={{ color: overLimit ? t.colors.danger : t.colors.muted }}
+            >
               {simple
                 ? `Try to finish your tests in about ${Math.floor(limit / 60)} minutes.`
                 : `Session guidance: ${Math.floor(limit / 60)} min (${limit}s) window.`}
@@ -390,7 +392,15 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
       )}
 
       <StemCard title={simple ? "What to do" : "Instructions"}>
-        <StemText variant="body">{simple ? config.instructionsSimple : config.instructions}</StemText>
+        <StemText variant="body">{instructionsText}</StemText>
+        {ttsEnabled && (
+          <SpeakButton
+            id="instructions"
+            text={instructionsText}
+            isSpeaking={isSpeaking("instructions")}
+            onPress={() => speak("instructions", instructionsText)}
+          />
+        )}
       </StemCard>
 
       <StemCard title={simple ? "Tools" : "Equipment"}>
@@ -399,20 +409,48 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
             • {item}
           </StemText>
         ))}
+        {ttsEnabled && (
+          <SpeakButton
+            id="equipment"
+            text={equipmentText}
+            isSpeaking={isSpeaking("equipment")}
+            onPress={() => speak("equipment", equipmentText)}
+          />
+        )}
       </StemCard>
 
       {config.nativeExtension === "reaction_board" && (
-        <ReactionBoardFlow simple={simple} onUpdate={mergePatch} />
+        <ReactionBoardFlow
+          simple={simple}
+          onUpdate={mergePatch}
+          ttsEnabled={ttsEnabled}
+          speak={speak}
+          isSpeaking={isSpeaking}
+        />
       )}
       {config.nativeExtension === "breathing" && (
-        <BreathingFlow simple={simple} onUpdate={mergePatch} />
+        <BreathingFlow
+          simple={simple}
+          onUpdate={mergePatch}
+          ttsEnabled={ttsEnabled}
+          speak={speak}
+          isSpeaking={isSpeaking}
+        />
       )}
       {config.nativeExtension === "sound_hunter" && (
         <>
-          <SoundMeterPanel onUpdate={mergePatch} />
+          <SoundMeterPanel
+            onUpdate={mergePatch}
+            ttsEnabled={ttsEnabled}
+            speak={speak}
+            isSpeaking={isSpeaking}
+          />
           <RoomNoiseMap
             dbLevel={dbForMap}
             onPickCell={(x, y) => mergePatch({ roomX: x, roomY: y })}
+            ttsEnabled={ttsEnabled}
+            speak={speak}
+            isSpeaking={isSpeaking}
           />
         </>
       )}
@@ -466,11 +504,23 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
             <StemText variant="small" style={{ marginBottom: 4 }}>
               {p}
             </StemText>
+            {ttsEnabled && (
+              <SpeakButton
+                id={`reflection-${p}`}
+                text={p}
+                isSpeaking={isSpeaking(`reflection-${p}`)}
+                onPress={() => speak(`reflection-${p}`, p)}
+              />
+            )}
             <TextInput
               multiline
               value={reflectionTexts[p] ?? ""}
               onChangeText={(tx) => setReflectionTexts((s) => ({ ...s, [p]: tx }))}
-              style={[styles.input, styles.textArea, { color: t.colors.text, borderColor: t.colors.border }]}
+              style={[
+                styles.input,
+                styles.textArea,
+                { color: t.colors.text, borderColor: t.colors.border },
+              ]}
               accessibilityLabel={`Reflection: ${p}`}
             />
           </View>
@@ -495,10 +545,22 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
           multiline
           value={comment}
           onChangeText={setComment}
-          style={[styles.input, styles.textArea, { color: t.colors.text, borderColor: t.colors.border }]}
+          style={[
+            styles.input,
+            styles.textArea,
+            { color: t.colors.text, borderColor: t.colors.border },
+          ]}
           accessibilityLabel="Team comment"
         />
       </StemCard>
+
+      {ttsEnabled && speakingId && (
+        <TouchableOpacity style={styles.stopAll} onPress={stop}>
+          <StemText variant="body" style={{ color: "#fff" }}>
+            ⏹ Stop reading
+          </StemText>
+        </TouchableOpacity>
+      )}
 
       <CameraCaptureModal
         visible={capture != null}
@@ -541,5 +603,12 @@ const styles = StyleSheet.create({
     padding: 12,
     borderTopWidth: 1,
     justifyContent: "space-between",
+  },
+  stopAll: {
+    backgroundColor: "#555",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 8,
   },
 });

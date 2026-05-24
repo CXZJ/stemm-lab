@@ -1,27 +1,31 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { href } from "@/navigation/href";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Dimensions, View } from "react-native";
-import { BarChart } from "react-native-chart-kit";
 import { getActivityConfig } from "@/activities";
+import { Screen } from "@/components/ui/Screen";
+import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemButton } from "@/components/ui/StemButton";
 import { StemCard } from "@/components/ui/StemCard";
 import { StemText } from "@/components/ui/StemText";
-import { Screen } from "@/components/ui/Screen";
+import { useSpeech } from "@/hooks/useSpeech";
+import { href } from "@/navigation/href";
 import { listLocalAttempts } from "@/services/sqlite/attemptsLocal";
-import { useTeamStore } from "@/store/teamStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useTeamStore } from "@/store/teamStore";
 import { useStemTheme } from "@/theme/ThemeProvider";
 import type { ActivityAttempt } from "@/types/models";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Dimensions, StyleSheet, TouchableOpacity, View } from "react-native";
+import { BarChart } from "react-native-chart-kit";
 
 export default function ActivityDetailScreen() {
   const { activityId } = useLocalSearchParams<{ activityId: string }>();
   const router = useRouter();
   const t = useStemTheme();
   const simple = useSettingsStore((s) => s.primarySchoolMode);
+  const ttsEnabled = useSettingsStore((s) => s.ttsEnabled);
   const team = useTeamStore((s) => s.team);
   const config = activityId ? getActivityConfig(activityId) : undefined;
   const [attempts, setAttempts] = useState<ActivityAttempt[]>([]);
+  const { speak, stop, isSpeaking, speakingId } = useSpeech();
 
   const load = useCallback(async () => {
     if (!team || !activityId) return;
@@ -80,19 +84,54 @@ export default function ActivityDetailScreen() {
     );
   }
 
+  const descriptionText = simple ? config.descriptionSimple : config.description;
+
   return (
     <Screen>
       <StemText variant="h1">{config.title}</StemText>
       <StemText variant="small" style={{ color: t.colors.muted }}>
         {config.subjectArea}
       </StemText>
-      <StemCard title={simple ? "About" : "Description"}>
-        <StemText variant="body">{simple ? config.descriptionSimple : config.description}</StemText>
+
+      <StemCard
+        title={simple ? "About" : "Description"}
+        footer={
+          ttsEnabled ? (
+            <SpeakButton
+              id="description"
+              text={descriptionText}
+              isSpeaking={isSpeaking("description")}
+              onPress={() => speak("description", descriptionText)}
+            />
+          ) : null
+        }
+      >
+        <StemText variant="body">{descriptionText}</StemText>
       </StemCard>
+
       {chart}
-      <StemCard title="Progress">
+
+      <StemCard
+        title="Progress"
+        footer={
+          ttsEnabled ? (
+            <SpeakButton
+              id="progress"
+              text={`You have ${attempts.length} saved attempt${attempts.length !== 1 ? "s" : ""} on this device.`}
+              isSpeaking={isSpeaking("progress")}
+              onPress={() =>
+                speak(
+                  "progress",
+                  `You have ${attempts.length} saved attempt${attempts.length !== 1 ? "s" : ""} on this device.`,
+                )
+              }
+            />
+          ) : null
+        }
+      >
         <StemText variant="body">{attempts.length} saved attempt(s) on this device</StemText>
       </StemCard>
+
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         <StemButton
           title="Start"
@@ -104,6 +143,24 @@ export default function ActivityDetailScreen() {
           onPress={() => router.push(href(`/(main)/activity/${activityId}/history`))}
         />
       </View>
+
+      {ttsEnabled && speakingId && (
+        <TouchableOpacity style={styles.stopAll} onPress={stop}>
+          <StemText variant="body" style={{ color: "#fff" }}>
+            ⏹ Stop reading
+          </StemText>
+        </TouchableOpacity>
+      )}
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  stopAll: {
+    backgroundColor: "#555",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 8,
+  },
+});

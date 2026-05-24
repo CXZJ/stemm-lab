@@ -40,7 +40,7 @@ export function useSpeech() {
     setSpeakingId(null);
   }, []);
 
-  const isSpeaking = useCallback((id: string) => speakingId === id, [speakingId]);
+  const isSpeaking = (id: string) => speakingId === id;
 
   return { speak, stop, isSpeaking, speakingId };
 }

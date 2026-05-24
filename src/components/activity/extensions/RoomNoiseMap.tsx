@@ -1,14 +1,23 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemText } from "@/components/ui/StemText";
 import { useStemTheme } from "@/theme/ThemeProvider";
 import { minTouch } from "@/theme/tokens";
+import { Pressable, StyleSheet, View } from "react-native";
+
+const DESCRIPTION = "Tap where you measured. Loudness tint uses your last decibel reading when set.";
 
 export function RoomNoiseMap({
   dbLevel,
   onPickCell,
+  ttsEnabled,
+  speak,
+  isSpeaking,
 }: {
   dbLevel: number | null;
   onPickCell: (x: number, y: number) => void;
+  ttsEnabled?: boolean;
+  speak?: (id: string, text: string) => void;
+  isSpeaking?: (id: string) => boolean;
 }) {
   const t = useStemTheme();
   const rows = 6;
@@ -31,8 +40,16 @@ export function RoomNoiseMap({
     <View style={{ marginBottom: 16 }}>
       <StemText variant="h2">Room map</StemText>
       <StemText variant="small" style={{ color: t.colors.muted, marginBottom: 8 }}>
-        Tap where you measured. Loudness tint uses your last dB reading when set.
+        {DESCRIPTION}
       </StemText>
+      {ttsEnabled && speak && isSpeaking && (
+        <SpeakButton
+          id="roommap-desc"
+          text={DESCRIPTION}
+          isSpeaking={isSpeaking("roommap-desc")}
+          onPress={() => speak("roommap-desc", DESCRIPTION)}
+        />
+      )}
       <View style={styles.grid}>
         {cells.map((cell) => (
           <Pressable
@@ -60,16 +77,6 @@ export function RoomNoiseMap({
 }
 
 const styles = StyleSheet.create({
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 4,
-    justifyContent: "center",
-  },
-  cell: {
-    flexGrow: 1,
-    flexBasis: "14%",
-    borderRadius: 8,
-    margin: 2,
-  },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 4, justifyContent: "center" },
+  cell: { flexGrow: 1, flexBasis: "14%", borderRadius: 8, margin: 2 },
 });
