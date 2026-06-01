@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { initMobileAds } from "@/services/adsInit";
@@ -15,8 +15,12 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const initAuth = useAuthStore((s) => s.init);
+  const user = useAuthStore((s) => s.firebaseUser);       // ← add this
+  const authReady = useAuthStore((s) => s.ready);
   const hydrateTeam = useTeamStore((s) => s.hydrate);
   const hydrateSettings = useSettingsStore((s) => s.hydrate);
+  const router = useRouter();                             // ← add this
+  const segments = useSegments();
 
   useEffect(() => {
     const unsub = initAuth();
@@ -32,6 +36,20 @@ export default function RootLayout() {
       unsub();
     };
   }, [hydrateSettings, hydrateTeam, initAuth]);
+
+useEffect(() => {
+    if (!authReady) return; 
+
+    const inAuthGroup = segments[0] === "(auth)";
+
+    if (!user && !inAuthGroup) {
+      // signed out & not already on sign-in 
+      router.replace("/(auth)/sign-in");
+    } else if (user && inAuthGroup) {
+      // signed in but on auth screen
+      router.replace("/(main)");
+    }
+  }, [user, authReady, segments, router]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useRouter } from "expo-router";
+import { useState } from "react";
 import { href } from "@/navigation/href";
 import { Controller, useForm } from "react-hook-form";
 import { TextInput, StyleSheet } from "react-native";
@@ -12,16 +13,23 @@ import { useStemTheme } from "@/theme/ThemeProvider";
 import { z } from "zod";
 
 const schema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.string().email("Please enter a valid email address."),
+  password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
 export default function SignInScreen() {
   const t = useStemTheme();
   const router = useRouter();
   const signIn = useAuthStore((s) => s.signIn);
-  const err = useAuthStore((s) => s.error);
-  const { control, handleSubmit } = useForm({
+
+  const [signInError, setSignInError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
   });
@@ -48,11 +56,15 @@ export default function SignInScreen() {
       <StemText variant="small" style={{ color: t.colors.muted, marginBottom: 16 }}>
         Sign in to sync attempts, media, and leaderboards.
       </StemText>
-      {err ? (
+
+      {/* Firebase sign-in error (wrong email/password) */}
+      {signInError ? (
         <StemText variant="small" style={{ color: t.colors.danger, marginBottom: 8 }}>
-          {err}
+          {signInError}
         </StemText>
       ) : null}
+
+      {/* Email field */}
       <StemText variant="body" accessibilityLabel="Email">
         Email
       </StemText>
@@ -62,13 +74,29 @@ export default function SignInScreen() {
         render={({ field: { value, onChange } }) => (
           <TextInput
             value={value}
-            onChangeText={onChange}
+            onChangeText={(text) => {
+              onChange(text);
+              setSignInError(null); 
+            }}
             autoCapitalize="none"
             keyboardType="email-address"
-            style={[styles.input, { color: t.colors.text, borderColor: t.colors.border }]}
+            style={[
+              styles.input,
+              {
+                color: t.colors.text,
+                borderColor: errors.email ? t.colors.danger : t.colors.border,
+              },
+            ]}
           />
         )}
       />
+      {errors.email ? (
+        <StemText variant="small" style={{ color: t.colors.danger, marginTop: 4 }}>
+          {errors.email.message}
+        </StemText>
+      ) : null}
+
+      {/* Password field */}
       <StemText variant="body" style={{ marginTop: 12 }}>
         Password
       </StemText>
@@ -78,17 +106,39 @@ export default function SignInScreen() {
         render={({ field: { value, onChange } }) => (
           <TextInput
             value={value}
-            onChangeText={onChange}
+            onChangeText={(text) => {
+              onChange(text);
+              setSignInError(null); 
+            }}
             secureTextEntry
-            style={[styles.input, { color: t.colors.text, borderColor: t.colors.border }]}
+            style={[
+              styles.input,
+              {
+                color: t.colors.text,
+                borderColor: errors.password ? t.colors.danger : t.colors.border,
+              },
+            ]}
           />
         )}
       />
+      {errors.password ? (
+        <StemText variant="small" style={{ color: t.colors.danger, marginTop: 4 }}>
+          {errors.password.message}
+        </StemText>
+      ) : null}
+
       <StemButton
-        title="Sign in"
+        title={loading ? "Signing in…" : "Sign in"}
         onPress={handleSubmit(async (v) => {
-          await signIn(v.email, v.password);
-          router.replace("/");
+          setSignInError(null);
+          setLoading(true);
+          try {
+            await signIn(v.email, v.password);
+          } catch {
+            setSignInError("Incorrect email or password. Please try again.");
+          } finally {
+            setLoading(false);
+          }
         })}
         style={{ marginTop: 20 }}
       />

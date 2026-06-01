@@ -11,6 +11,7 @@ import { isFirebaseConfigured } from "@/services/firebase/config";
 
 interface AuthState {
   firebaseUser: FirebaseUser | null;
+  ready: boolean;
   teamId: string | undefined;
   initializing: boolean;
   error: string | null;
@@ -23,13 +24,14 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   firebaseUser: null,
+  ready: false,
   teamId: undefined,
   initializing: true,
   error: null,
 
   init: () => {
     if (!isFirebaseConfigured()) {
-      set({ firebaseUser: null, teamId: undefined, initializing: false });
+      set({ firebaseUser: null, teamId: undefined, initializing: false, ready: true });
       return () => {};
     }
     return subscribeAuth(async (u) => {
@@ -41,6 +43,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         firebaseUser: u,
         teamId,
         initializing: false,
+        ready:true,
         error: null,
       });
     });
