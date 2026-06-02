@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createTeamOnServer, fetchTeam, updateTeamOnServer } from "@/services/firebase/teamService";
-import { updateUserTeamId } from "@/services/firebase/authService";
+import { updateUserTeamId, fetchUserTeamId } from "@/services/firebase/authService";
 import type { Team } from "@/types/models";
 
 const KEY = "stemm_team_profile_v1";
@@ -9,7 +9,7 @@ const KEY = "stemm_team_profile_v1";
 interface TeamState {
   team: Team | null;
   hydrated: boolean;
-  hydrate: () => Promise<void>;
+  hydrate: (uid?: string) => Promise<void>;
   saveLocalTeam: (team: Team) => Promise<void>;
   createTeam: (input: {
     name: string;
@@ -26,16 +26,42 @@ export const useTeamStore = create<TeamState>((set, get) => ({
   team: null,
   hydrated: false,
 
-  hydrate: async () => {
+  hydrate: async (uid?: string) => {
+    console.log("[teamStore] hydrate() called");
     const raw = await AsyncStorage.getItem(KEY);
+    console.log("[teamStore] raw value from AsyncStorage:", raw);
+
     if (raw) {
       try {
-        set({ team: JSON.parse(raw) as Team, hydrated: true });
+        const parsed = JSON.parse(raw) as Team;
+        console.log("[teamStore] parsed team:", parsed);
+        set({ team: parsed, hydrated: true });
         return;
-      } catch {
-        /* fall through */
+      } catch (e) {
+        console.log("[teamStore] JSON parse error:", e);
       }
     }
+
+    // AsyncStorage empty — fall back to Firebase
+    if (uid) {
+      try {
+        console.log("[teamStore] no local team, checking Firebase for uid:", uid);
+        const teamId = await fetchUserTeamId(uid);
+        if (teamId) {
+          const remote = await fetchTeam(teamId);
+          if (remote) {
+            console.log("[teamStore] synced team from Firebase:", remote);
+            await AsyncStorage.setItem(KEY, JSON.stringify(remote));
+            set({ team: remote, hydrated: true });
+            return;
+          }
+        }
+      } catch (e) {
+        console.log("[teamStore] Firebase fallback error:", e);
+      }
+    }
+
+    console.log("[teamStore] no team found anywhere, setting hydrated=true with null");
     set({ team: null, hydrated: true });
   },
 

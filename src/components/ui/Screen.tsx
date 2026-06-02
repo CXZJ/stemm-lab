@@ -15,13 +15,23 @@ export function Screen({
   scroll = true,
   footer,
   contentStyle,
+  safeBottom = false,
 }: {
   children: ReactNode;
   scroll?: boolean;
   footer?: ReactNode;
   contentStyle?: ViewStyle;
+  safeBottom?: boolean;
 }) {
   const t = useStemTheme();
+
+  const edges: ("top" | "left" | "right" | "bottom")[] = [
+    "top",
+    "left",
+    "right",
+    ...(safeBottom ? (["bottom"] as const) : []),
+  ];
+
   const body = scroll ? (
     <ScrollView
       contentContainerStyle={[styles.scroll, contentStyle]}
@@ -34,7 +44,7 @@ export function Screen({
   );
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: t.colors.bg }]} edges={["top", "left", "right"]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: t.colors.bg }]} edges={edges}>
       <KeyboardAvoidingView
         style={styles.fill}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

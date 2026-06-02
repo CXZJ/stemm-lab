@@ -15,16 +15,15 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const initAuth = useAuthStore((s) => s.init);
-  const user = useAuthStore((s) => s.firebaseUser);       // ← add this
+  const user = useAuthStore((s) => s.firebaseUser);
   const authReady = useAuthStore((s) => s.ready);
   const hydrateTeam = useTeamStore((s) => s.hydrate);
   const hydrateSettings = useSettingsStore((s) => s.hydrate);
-  const router = useRouter();                             // ← add this
+  const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
     const unsub = initAuth();
-    void hydrateTeam();
     void hydrateSettings();
     void openStemmDatabase();
     void registerBackgroundSync().catch(() => {});
@@ -35,18 +34,21 @@ export default function RootLayout() {
       clearTimeout(t);
       unsub();
     };
-  }, [hydrateSettings, hydrateTeam, initAuth]);
+  }, [hydrateSettings, initAuth]);
 
-useEffect(() => {
-    if (!authReady) return; 
+  useEffect(() => {
+    if (!authReady || !user) return;
+    void hydrateTeam(user.uid);
+  }, [authReady, user?.uid, hydrateTeam]);
+
+  useEffect(() => {
+    if (!authReady) return;
 
     const inAuthGroup = segments[0] === "(auth)";
 
     if (!user && !inAuthGroup) {
-      // signed out & not already on sign-in 
       router.replace("/(auth)/sign-in");
     } else if (user && inAuthGroup) {
-      // signed in but on auth screen
       router.replace("/(main)");
     }
   }, [user, authReady, segments, router]);
