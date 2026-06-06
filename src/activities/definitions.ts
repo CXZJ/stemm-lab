@@ -204,23 +204,9 @@ Use hearing-risk bands as guidance. Calibrate offset if you know your device bia
   instructionsSimple:
     "Tap record for each sound. Put a dot on the map. Stay safe with loud noises!",
   timer: { showStopwatch: true },
-  mediaRequirements: [
-    {
-      id: "sound_clip",
-      kind: "audio",
-      required: false,
-      label: "Optional audio sample",
-    },
-  ],
+  mediaRequirements: [],
   sensorRequirements: [
-    {
-      id: "audio_meter",
-      kind: "audio_meter",
-      required: false,
-      label: "Approximate dB meter",
-      labelSimple: "Sound meter (approximate)",
-    },
-    { id: "gps_tag", kind: "gps", required: false, label: "GPS tag for outdoor map" },
+    { id: "audio_meter", kind: "audio_meter", required: false, label: "Approximate dB meter", labelSimple: "Sound meter (approximate)" },
   ],
   customFields: [
     {
@@ -250,17 +236,8 @@ Use hearing-risk bands as guidance. Calibrate offset if you know your device bia
       advancedOnly: true,
       defaultValue: 0,
     },
-    {
-      id: "readingLabel",
-      label: "Reading type",
-      type: "select",
-      options: [
-        { value: "calibrated", label: "Calibrated" },
-        { value: "approximate", label: "Approximate / uncalibrated" },
-      ],
-    },
-    { id: "roomX", label: "Room map X (0–1)", type: "number", min: 0, max: 1, step: 0.01 },
-    { id: "roomY", label: "Room map Y (0–1)", type: "number", min: 0, max: 1, step: 0.01 },
+    { id: "roomX", label: "Room map X (0–1)", type: "number", min: 0, max: 1, step: 0.01, advancedOnly: true },
+    { id: "roomY", label: "Room map Y (0–1)", type: "number", min: 0, max: 1, step: 0.01, advancedOnly: true },
     { id: "prediction", label: "Prediction", type: "textarea" },
     { id: "outcome", label: "Outcome", type: "textarea" },
     { id: "notes", label: "Notes", type: "textarea" },

@@ -46,7 +46,7 @@ const schema = z.object({
 export default function TeamScreen() {
   const t = useStemTheme();
   const team = useTeamStore((s) => s.team);
-  const hydrated = useTeamStore((s) => s.hydrated); // ← add this
+  const hydrated = useTeamStore((s) => s.hydrated);
   const updateTeam = useTeamStore((s) => s.updateTeam);
   const ttsEnabled = useSettingsStore((s) => s.ttsEnabled);
   const { speak, stop, isSpeaking, speakingId } = useSpeech();
@@ -73,7 +73,7 @@ export default function TeamScreen() {
     }
   }, [team, reset]);
 
-  // ✅ Still reading from AsyncStorage — show spinner
+  // still reading from AsyncStorage — show spinner
   if (!hydrated) {
     return (
       <Screen>
@@ -82,7 +82,7 @@ export default function TeamScreen() {
     );
   }
 
-  // ✅ Hydrated but genuinely no team exists yet
+  // hydrated but genuinely no team exists yet
   if (!team) {
     return (
       <Screen>

@@ -2,6 +2,7 @@ import { Screen } from "@/components/ui/Screen";
 import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemCard } from "@/components/ui/StemCard";
 import { StemText } from "@/components/ui/StemText";
+import { StemButton } from "@/components/ui/StemButton";
 import { SyncStatusBadge } from "@/components/ui/SyncStatusBadge";
 import { useSpeech } from "@/hooks/useSpeech";
 import { href } from "@/navigation/href";
@@ -66,6 +67,17 @@ export default function ActivityHistoryScreen() {
                 <StemText variant="body">Attempt {a.id.slice(0, 8)}…</StemText>
                 <SyncStatusBadge status={a.syncStatus} />
               </Pressable>
+              
+              {/* ← ADD THIS */}
+              {a.id.startsWith("draft_") && (
+                <StemButton
+                  title="Continue draft"
+                  variant="secondary"
+                  onPress={() =>
+                    router.push(href(`/(main)/activity/${activityId}/attempt`))
+                  }
+                />
+              )}
             </StemCard>
           );
         })

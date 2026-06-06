@@ -28,6 +28,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, Switch, TextInput, TouchableOpacity, View } from "react-native";
+import { getLocalAttempt } from "@/services/sqlite/attemptsLocal";
 
 function buildDefaults(config: ActivityConfig): Record<string, string> {
   const d: Record<string, string> = {};
@@ -198,6 +199,22 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
   useEffect(() => {
     if (config) reset(buildDefaults(config));
   }, [activityId, config, reset]);
+
+  useEffect(() => {
+    const loadDraft = async () => {
+      if (!team || !activityId) return;
+      const draftId = `draft_${team.id}_${activityId}`;
+      const existing = await getLocalAttempt(draftId);
+      if (!existing?.customData) return;
+      const stringified: Record<string, string> = {};
+      for (const [k, v] of Object.entries(existing.customData)) {
+        stringified[k] = String(v);
+      }
+      reset(stringified);
+      setExt(existing.customData as Record<string, unknown>);
+    };
+    void loadDraft();
+  }, [activityId, team]);
 
   const [ext, setExt] = useState<Record<string, unknown>>({});
   const [pendingMedia, setPendingMedia] = useState<{ localUri: string; kind: "photo" | "video" | "audio"; contentType: string }[]>([]);
@@ -476,6 +493,7 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
         ))}
       </StemCard>
 
+      {config.mediaRequirements.length > 0 && (
       <StemCard title={simple ? "Photos & videos" : "Media evidence"}>
         {config.mediaRequirements.map((m) => (
           <View key={m.id} style={{ marginBottom: 8 }}>
@@ -494,6 +512,7 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
           <StemText variant="caption">{pendingMedia.length} file(s) ready to upload</StemText>
         )}
       </StemCard>
+      )}
 
       <StemCard title={simple ? "Think about it" : "Reflection"}>
         {(simple && config.reflectionPromptsSimple?.length
