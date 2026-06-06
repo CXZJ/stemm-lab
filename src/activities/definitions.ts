@@ -115,11 +115,13 @@ export const parachuteDrop: ActivityConfig = {
       id: "targetAccuracy",
       label: "Target accuracy notes",
       type: "textarea",
+      placeholder: "e.g. Landed 20cm left of target zone, spun slightly on the way down",
     },
     {
       id: "landingNotes",
       label: "Landing notes",
       type: "textarea",
+      placeholder: "e.g. Landed softly with no bounce, parachute stayed open the whole time",
     },
     {
       id: "designRating",
@@ -132,6 +134,7 @@ export const parachuteDrop: ActivityConfig = {
       id: "prediction",
       label: "Team prediction",
       type: "textarea",
+      placeholder: "e.g. We think prototype 2 will be slowest because it has the biggest canopy",
     },
     {
       id: "predictionCorrect",
@@ -206,7 +209,13 @@ Use hearing-risk bands as guidance. Calibrate offset if you know your device bia
   timer: { showStopwatch: true },
   mediaRequirements: [],
   sensorRequirements: [
-    { id: "audio_meter", kind: "audio_meter", required: false, label: "Approximate dB meter", labelSimple: "Sound meter (approximate)" },
+    {
+      id: "audio_meter",
+      kind: "audio_meter",
+      required: false,
+      label: "Approximate dB meter",
+      labelSimple: "Sound meter (approximate)",
+    },
   ],
   customFields: [
     {
@@ -221,7 +230,12 @@ Use hearing-risk bands as guidance. Calibrate offset if you know your device bia
         { value: "custom", label: "Custom" },
       ],
     },
-    { id: "customSoundLabel", label: "Custom sound label", type: "text" },
+    {
+      id: "customSoundLabel",
+      label: "Custom sound label",
+      type: "text",
+      placeholder: "e.g. Clapping, chair scraping, door slamming",
+    },
     {
       id: "dbRaw",
       label: "Measured level (approx dB)",
@@ -236,11 +250,42 @@ Use hearing-risk bands as guidance. Calibrate offset if you know your device bia
       advancedOnly: true,
       defaultValue: 0,
     },
-    { id: "roomX", label: "Room map X (0–1)", type: "number", min: 0, max: 1, step: 0.01, advancedOnly: true },
-    { id: "roomY", label: "Room map Y (0–1)", type: "number", min: 0, max: 1, step: 0.01, advancedOnly: true },
-    { id: "prediction", label: "Prediction", type: "textarea" },
-    { id: "outcome", label: "Outcome", type: "textarea" },
-    { id: "notes", label: "Notes", type: "textarea" },
+    {
+      id: "roomX",
+      label: "Room map X (0–1)",
+      type: "number",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      advancedOnly: true,
+    },
+    {
+      id: "roomY",
+      label: "Room map Y (0–1)",
+      type: "number",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      advancedOnly: true,
+    },
+    {
+      id: "prediction",
+      label: "Prediction",
+      type: "textarea",
+      placeholder: "e.g. We think stamping feet will be the loudest action",
+    },
+    {
+      id: "outcome",
+      label: "Outcome",
+      type: "textarea",
+      placeholder: "e.g. Dropping the book was louder than expected at 85 dB",
+    },
+    {
+      id: "notes",
+      label: "Notes",
+      type: "textarea",
+      placeholder: "e.g. The corner of the room was much quieter than near the door",
+    },
   ],
   calculations: [
     {
@@ -298,9 +343,24 @@ export const handFan: ActivityConfig = {
       ],
     },
     { id: "bendAngleDeg", label: "Bend angle (°)", type: "number", unit: "°" },
-    { id: "notes", label: "Notes", type: "textarea" },
-    { id: "prediction", label: "Prediction", type: "textarea" },
-    { id: "result", label: "Result", type: "textarea" },
+    {
+      id: "notes",
+      label: "Notes",
+      type: "textarea",
+      placeholder: "e.g. Paper wobbled a lot at 15cm, barely moved at 45cm",
+    },
+    {
+      id: "prediction",
+      label: "Prediction",
+      type: "textarea",
+      placeholder: "e.g. We think the folded fan will move the paper more than the flat one",
+    },
+    {
+      id: "result",
+      label: "Result",
+      type: "textarea",
+      placeholder: "e.g. Design 1 bent the paper 30° at 15cm, only 5° at 45cm",
+    },
   ],
   calculations: [
     {
@@ -340,7 +400,12 @@ Enter movement notes, prediction and result.`,
     },
   ],
   customFields: [
-    { id: "structureDesign", label: "Structure design notes", type: "textarea" },
+    {
+      id: "structureDesign",
+      label: "Structure design notes",
+      type: "textarea",
+      placeholder: "e.g. 4 pillars with accordion folds underneath, flat cardboard platform on top",
+    },
     { id: "foldCount", label: "Number of folds", type: "number", min: 0 },
     { id: "pillarCount", label: "Number of pillars", type: "number", min: 0 },
     {
@@ -356,9 +421,24 @@ Enter movement notes, prediction and result.`,
       type: "number",
       advancedOnly: true,
     },
-    { id: "notes", label: "Notes", type: "textarea" },
-    { id: "prediction", label: "Prediction", type: "textarea" },
-    { id: "result", label: "Result", type: "textarea" },
+    {
+      id: "notes",
+      label: "Notes",
+      type: "textarea",
+      placeholder: "e.g. Adding more folds reduced wobble significantly on the second try",
+    },
+    {
+      id: "prediction",
+      label: "Prediction",
+      type: "textarea",
+      placeholder: "e.g. We think more folds will absorb more vibration than more pillars",
+    },
+    {
+      id: "result",
+      label: "Result",
+      type: "textarea",
+      placeholder: "e.g. Structure with 6 folds barely moved compared to the 2-fold design",
+    },
   ],
   calculations: [],
   reflectionPrompts: ["Which design felt strongest?"],
@@ -389,7 +469,12 @@ export const humanPerformance: ActivityConfig = {
     },
   ],
   customFields: [
-    { id: "attemptLabel", label: "Attempt name", type: "text" },
+    {
+      id: "attemptLabel",
+      label: "Attempt name",
+      type: "text",
+      placeholder: "e.g. Slow stretch, Fast reach, Eyes closed attempt",
+    },
     { id: "speedScore", label: "Speed (1–10)", type: "number", min: 1, max: 10 },
     { id: "smoothnessScore", label: "Smoothness (1–10)", type: "number", min: 1, max: 10 },
     { id: "romDeg", label: "Range of motion (° est.)", type: "number", advancedOnly: true },
@@ -399,7 +484,12 @@ export const humanPerformance: ActivityConfig = {
       type: "number",
       advancedOnly: true,
     },
-    { id: "notes", label: "Notes", type: "textarea" },
+    {
+      id: "notes",
+      label: "Notes",
+      type: "textarea",
+      placeholder: "e.g. Felt smoother on attempt 3, arm was more controlled and less shaky",
+    },
   ],
   calculations: [],
   reflectionPrompts: ["How did practice change your smoothness?"],
@@ -421,11 +511,21 @@ export const reactionBoard: ActivityConfig = {
   mediaRequirements: [],
   sensorRequirements: [],
   customFields: [
-    { id: "memberName", label: "Team member first name", type: "text" },
+    {
+      id: "memberName",
+      label: "Team member first name",
+      type: "text",
+      placeholder: "e.g. Sarah",
+    },
     { id: "handDominantMs", label: "Dominant hand avg (ms)", type: "number", advancedOnly: true },
     { id: "handOtherMs", label: "Other hand avg (ms)", type: "number", advancedOnly: true },
     { id: "traceScore", label: "Trace score (0–100)", type: "number", min: 0, max: 100 },
-    { id: "notes", label: "Notes", type: "textarea" },
+    {
+      id: "notes",
+      label: "Notes",
+      type: "textarea",
+      placeholder: "e.g. Dominant hand was faster by 80ms, non-dominant hand improved each round",
+    },
   ],
   calculations: [
     {
@@ -456,7 +556,12 @@ export const breathingPace: ActivityConfig = {
   mediaRequirements: [],
   sensorRequirements: [],
   customFields: [
-    { id: "memberName", label: "Team member measured", type: "text" },
+    {
+      id: "memberName",
+      label: "Team member measured",
+      type: "text",
+      placeholder: "e.g. James",
+    },
     {
       id: "phase",
       label: "Phase",
@@ -469,10 +574,31 @@ export const breathingPace: ActivityConfig = {
     },
     { id: "breathCount", label: "Breaths counted", type: "number", min: 0 },
     { id: "sampleDurationSec", label: "Sample duration (s)", type: "number", min: 1 },
-    { id: "chestNote", label: "Chest movement notes", type: "textarea", advancedOnly: true },
-    { id: "prediction", label: "Prediction", type: "textarea" },
-    { id: "result", label: "Result", type: "textarea" },
-    { id: "notes", label: "Notes", type: "textarea" },
+    {
+      id: "chestNote",
+      label: "Chest movement notes",
+      type: "textarea",
+      advancedOnly: true,
+      placeholder: "e.g. Chest rose much higher after exercise, breathing was faster and deeper",
+    },
+    {
+      id: "prediction",
+      label: "Prediction",
+      type: "textarea",
+      placeholder: "e.g. We think breathing rate will double after doing jumping jacks",
+    },
+    {
+      id: "result",
+      label: "Result",
+      type: "textarea",
+      placeholder: "e.g. Went from 15 breaths/min at rest to 28 breaths/min after exercise",
+    },
+    {
+      id: "notes",
+      label: "Notes",
+      type: "textarea",
+      placeholder: "e.g. Took about 2 minutes to return to a normal breathing rate",
+    },
   ],
   calculations: [
     {
