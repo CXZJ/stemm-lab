@@ -495,6 +495,7 @@ export const humanPerformance: ActivityConfig = {
   reflectionPrompts: ["How did practice change your smoothness?"],
   ratingMaxStars: 5,
   leaderboard: { metricFieldId: "smoothnessScore", higherIsBetter: true },
+  nativeExtension: "human_performance",
 };
 
 export const reactionBoard: ActivityConfig = {

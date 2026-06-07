@@ -4,6 +4,7 @@ import { BreathingFlow } from "@/components/activity/extensions/BreathingFlow";
 import { ReactionBoardFlow } from "@/components/activity/extensions/ReactionBoardFlow";
 import { RoomNoiseMap } from "@/components/activity/extensions/RoomNoiseMap";
 import { SoundMeterPanel } from "@/components/activity/extensions/SoundMeterPanel";
+import { HumanPerformanceFlow } from "@/components/activity/extensions/HumanPerformanceFlow";
 import { Screen } from "@/components/ui/Screen";
 import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemButton } from "@/components/ui/StemButton";
@@ -470,6 +471,15 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
             isSpeaking={isSpeaking}
           />
         </>
+      )}
+      {config.nativeExtension === "human_performance" && (
+      <HumanPerformanceFlow
+        simple={simple}
+        onUpdate={mergePatch}
+        ttsEnabled={ttsEnabled}
+        speak={speak}
+        isSpeaking={isSpeaking}
+        />
       )}
 
       {config.sensorRequirements.map((req) => (
