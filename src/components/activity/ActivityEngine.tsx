@@ -267,8 +267,14 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
   const overLimit = limit != null && elapsed > limit;
 
   const mergePatch = (patch: Record<string, number | string>) => {
-    setExt((e) => ({ ...e, ...patch }));
-  };
+  setExt((e) => ({ ...e, ...patch }));
+
+  const stringified: Record<string, string> = {};
+  for (const [k, v] of Object.entries(patch)) {
+    stringified[k] = String(v);
+  }
+  reset((prev) => ({ ...prev, ...stringified }));
+};
 
   const onSaveDraft = handleSubmit(async (raw) => {
     const draftId = `draft_${team.id}_${activityId}`;
