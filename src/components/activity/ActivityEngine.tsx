@@ -5,6 +5,7 @@ import { ReactionBoardFlow } from "@/components/activity/extensions/ReactionBoar
 import { RoomNoiseMap } from "@/components/activity/extensions/RoomNoiseMap";
 import { SoundMeterPanel } from "@/components/activity/extensions/SoundMeterPanel";
 import { HumanPerformanceFlow } from "@/components/activity/extensions/HumanPerformanceFlow";
+import { EarthquakeFlow } from "@/components/activity/extensions/EarthquakeFlow";
 import { Screen } from "@/components/ui/Screen";
 import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemButton } from "@/components/ui/StemButton";
@@ -474,6 +475,15 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
       )}
       {config.nativeExtension === "human_performance" && (
       <HumanPerformanceFlow
+        simple={simple}
+        onUpdate={mergePatch}
+        ttsEnabled={ttsEnabled}
+        speak={speak}
+        isSpeaking={isSpeaking}
+        />
+      )}
+      {config.nativeExtension === "earthquake" && (
+      <EarthquakeFlow
         simple={simple}
         onUpdate={mergePatch}
         ttsEnabled={ttsEnabled}

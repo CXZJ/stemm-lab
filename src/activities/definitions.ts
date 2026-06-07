@@ -391,14 +391,7 @@ Enter movement notes, prediction and result.`,
   mediaRequirements: [
     { id: "structure_photo", kind: "photo", required: false, label: "Structure photo" },
   ],
-  sensorRequirements: [
-    {
-      id: "accel",
-      kind: "accelerometer",
-      required: false,
-      label: "Accelerometer sample",
-    },
-  ],
+  sensorRequirements: [],
   customFields: [
     {
       id: "structureDesign",
@@ -444,6 +437,7 @@ Enter movement notes, prediction and result.`,
   reflectionPrompts: ["Which design felt strongest?"],
   ratingMaxStars: 5,
   leaderboard: { metricFieldId: "accelMagnitudeMax", higherIsBetter: false },
+  nativeExtension: "earthquake",
 };
 
 export const humanPerformance: ActivityConfig = {
@@ -460,14 +454,7 @@ export const humanPerformance: ActivityConfig = {
   mediaRequirements: [
     { id: "move_video", kind: "video", required: false, label: "Optional movement video" },
   ],
-  sensorRequirements: [
-    {
-      id: "motion",
-      kind: "motion_smoothness",
-      required: false,
-      label: "Motion smoothness sample",
-    },
-  ],
+  sensorRequirements: [],
   customFields: [
     {
       id: "attemptLabel",
