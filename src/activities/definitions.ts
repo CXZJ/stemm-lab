@@ -388,9 +388,7 @@ export const earthquakeStructure: ActivityConfig = {
 Enter movement notes, prediction and result.`,
   instructionsSimple: "Shake your model and watch the numbers.",
   timer: { showStopwatch: true },
-  mediaRequirements: [
-    { id: "structure_photo", kind: "photo", required: false, label: "Structure photo" },
-  ],
+  mediaRequirements: [],
   sensorRequirements: [],
   customFields: [
     {
@@ -451,37 +449,62 @@ export const humanPerformance: ActivityConfig = {
   instructions: `Perform stretches or controlled moves. Record attempt label, perceived speed, smoothness, ROM, vibration proxy.`,
   instructionsSimple: "Do the move three times. Rate how smooth it felt.",
   timer: { showStopwatch: true },
-  mediaRequirements: [
-    { id: "move_video", kind: "video", required: false, label: "Optional movement video" },
-  ],
+  mediaRequirements: [],
   sensorRequirements: [],
   customFields: [
-    {
-      id: "attemptLabel",
-      label: "Attempt name",
-      type: "text",
-      placeholder: "e.g. Slow stretch, Fast reach, Eyes closed attempt",
-    },
-    { id: "speedScore", label: "Speed (1–10)", type: "number", min: 1, max: 10 },
-    { id: "smoothnessScore", label: "Smoothness (1–10)", type: "number", min: 1, max: 10 },
-    { id: "romDeg", label: "Range of motion (° est.)", type: "number", advancedOnly: true },
-    {
-      id: "vibrationProxy",
-      label: "Vibration proxy (avg mag)",
-      type: "number",
-      advancedOnly: true,
-    },
-    {
-      id: "notes",
-      label: "Notes",
-      type: "textarea",
-      placeholder: "e.g. Felt smoother on attempt 3, arm was more controlled and less shaky",
-    },
+  {
+    id: "allAttempts",
+    label: "All attempt data",
+    type: "textarea",
+    advancedOnly: true,
+  },
+  {
+    id: "vibrationProxy",
+    label: "Vibration proxy (avg G)",
+    type: "number",
+    advancedOnly: true,
+  },
+  {
+    id: "accelMagnitudeMax",
+    label: "Peak acceleration (G)",
+    type: "number",
+    advancedOnly: true,
+  },
+  {
+    id: "attemptLabel",
+    label: "Last attempt label",
+    type: "text",
+    advancedOnly: true,
+  },
+  {
+    id: "prediction",
+    label: "Prediction",
+    type: "textarea",
+    advancedOnly: true,
+  },
+  {
+    id: "result",
+    label: "Result",
+    type: "textarea",
+    advancedOnly: true,
+  },
+  {
+    id: "romDeg",
+    label: "Range of motion (° est.)",
+    type: "number",
+    advancedOnly: true,
+  },
+  {
+    id: "notes",
+    label: "Notes",
+    type: "textarea",
+    placeholder: "e.g. Movement 1 was hardest to keep smooth, arm kept shaking",
+  },
   ],
   calculations: [],
   reflectionPrompts: ["How did practice change your smoothness?"],
   ratingMaxStars: 5,
-  leaderboard: { metricFieldId: "smoothnessScore", higherIsBetter: true },
+  leaderboard: { metricFieldId: "vibrationProxy", higherIsBetter: false },
   nativeExtension: "human_performance",
 };
 
