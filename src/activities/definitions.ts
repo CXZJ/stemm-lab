@@ -568,6 +568,12 @@ export const breathingPace: ActivityConfig = {
   sensorRequirements: [],
   customFields: [
     {
+      id: "allAttempts",
+      label: "All attempt data",
+      type: "textarea",
+      advancedOnly: true,
+    },
+    {
       id: "memberName",
       label: "Team member measured",
       type: "text",
