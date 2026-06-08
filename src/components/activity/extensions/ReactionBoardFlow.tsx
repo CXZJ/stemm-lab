@@ -30,19 +30,23 @@ const PATH_WAYPOINTS = [
   { x: 260, y: 70 }, { x: 280, y: 72 }, { x: 300, y: 80 },
 ];
 
-function calcTraceScore(pts: { x: number; y: number }[]): number {
+function calcTraceScore(
+  pts: { x: number; y: number }[],
+  containerWidth: number,
+  containerHeight: number
+): number {
   if (pts.length < 3) return 0;
-  // For each waypoint, find closest traced point and check distance
-  const HIT_RADIUS = 28;
+  const scaled = scaleWaypoints(PATH_WAYPOINTS, containerWidth, containerHeight);
+  const HIT_RADIUS = 30;
   let hits = 0;
-  for (const wp of PATH_WAYPOINTS) {
+  for (const wp of scaled) {
     const closest = pts.reduce((best, p) => {
       const d = Math.hypot(p.x - wp.x, p.y - wp.y);
       return d < best ? d : best;
     }, Infinity);
     if (closest <= HIT_RADIUS) hits++;
   }
-  return Math.round((hits / PATH_WAYPOINTS.length) * 100);
+  return Math.round((hits / scaled.length) * 100);
 }
 
 const description =
@@ -55,12 +59,14 @@ export function ReactionBoardFlow({
   ttsEnabled,
   speak,
   isSpeaking,
+  onSetScrollEnabled,
 }: {
   simple: boolean;
   onUpdate: (patch: Record<string, number | string>) => void;
   ttsEnabled?: boolean;
   speak?: (id: string, text: string) => void;
   isSpeaking?: (id: string) => boolean;
+  onSetScrollEnabled?: (enabled: boolean) => void;
 }) {
   const t = useStemTheme();
   const team = useTeamStore((s) => s.team);
@@ -176,6 +182,7 @@ export function ReactionBoardFlow({
           key={`trace-${memberIndex}`}
           memberName={currentName}
           simple={simple}
+          onSetScrollEnabled={onSetScrollEnabled}
           onComplete={(score) => {
             const updated = results.map((r, i) =>
               i === memberIndex ? { ...r, traceScore: score } : r
@@ -323,23 +330,56 @@ function ReactionTapPhase({
   );
 }
 
+// Scale SVG path from 320x200 base to actual container size
+function scalePath(path: string, w: number, h: number): string {
+  const scaleX = w / 320;
+  const scaleY = h / 200;
+  return path.replace(/(-?\d+\.?\d*)/g, (match, num, offset, str) => {
+    // This is a simple approach — scale all numbers
+    return String(parseFloat(num));
+  })
+  // Better approach: rebuild the path with scaled coords
+  .replace("M 20 120", `M ${20 * scaleX} ${120 * scaleY}`)
+  .replace("Q 100 20 180 120", `Q ${100 * scaleX} ${20 * scaleY} ${180 * scaleX} ${120 * scaleY}`)
+  .replace("T 300 80", `T ${300 * scaleX} ${80 * scaleY}`);
+}
+
+// Scale waypoints from 320x200 base to actual container size
+function scaleWaypoints(
+  waypoints: { x: number; y: number }[],
+  w: number,
+  h: number
+): { x: number; y: number }[] {
+  const scaleX = w / 320;
+  const scaleY = h / 200;
+  return waypoints.map((wp) => ({
+    x: wp.x * scaleX,
+    y: wp.y * scaleY,
+  }));
+}
+
 // ── Trace Phase ────────────────────────────────────────────────────────────────
 function TracePhase({
   memberName,
   simple,
   onComplete,
+  onSetScrollEnabled,
 }: {
   memberName: string;
   simple: boolean;
   onComplete: (score: number) => void;
+  onSetScrollEnabled?: (enabled: boolean) => void;
 }) {
   const t = useStemTheme();
   const [pts, setPts] = useState<{ x: number; y: number }[]>([]);
   const [finished, setFinished] = useState(false);
   const [score, setScore] = useState<number | null>(null);
+  const [containerWidth, setContainerWidth] = useState(320);
+  const [containerHeight, setContainerHeight] = useState(200);
+  const [isTracing, setIsTracing] = useState(false);
 
   const finish = () => {
-    const s = calcTraceScore(pts);
+    const s = calcTraceScore(pts, containerWidth, containerHeight);
     setScore(s);
     setFinished(true);
   };
@@ -353,37 +393,73 @@ function TracePhase({
   return (
     <View>
       <StemText variant="body" style={{ marginBottom: 4 }}>
-        {memberName} — {simple ? "Tap along the dotted path as accurately as you can." : "Trace the guide path. Score is based on how closely you follow it."}
+        {memberName} — {simple
+          ? "Drag your finger along the dotted path."
+          : "Trace the guide path. Score is based on how closely you follow it."}
       </StemText>
 
-      <View style={[styles.traceWrap, { borderColor: t.colors.border }]}>
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          disabled={finished}
-          onPress={(e) => {
-            const { locationX, locationY } = e.nativeEvent;
-            setPts((p) => [...p, { x: locationX, y: locationY }].slice(-200));
-          }}
+      {/* ScrollView blocking fix — tell parent not to scroll while tracing */}
+      <View
+      style={[styles.traceWrap, { borderColor: t.colors.border }]}
+      onLayout={(e) => {
+        setContainerWidth(e.nativeEvent.layout.width);
+        setContainerHeight(e.nativeEvent.layout.height);
+      }}
+      onTouchStart={(e) => {
+        if (finished) return;
+        setIsTracing(true);
+        const { locationX, locationY } = e.nativeEvent;
+        setPts((p) => [...p, { x: locationX, y: locationY }].slice(-300));
+      }}
+      onTouchMove={(e) => {
+        if (finished || !isTracing) return;
+        const { locationX, locationY } = e.nativeEvent;
+        setPts((p) => [...p, { x: locationX, y: locationY }].slice(-300));
+      }}
+      onTouchEnd={() => setIsTracing(false)}
+      onStartShouldSetResponder={() => true}
+      onMoveShouldSetResponder={() => true}
+      onResponderGrant={(e) => {
+        if (finished) return;
+        onSetScrollEnabled?.(false);
+        setIsTracing(true);
+        const { locationX, locationY } = e.nativeEvent;
+        setPts((p) => [...p, { x: locationX, y: locationY }].slice(-300));
+      }}
+      onResponderMove={(e) => {
+        if (finished) return;
+        const { locationX, locationY } = e.nativeEvent;
+        setPts((p) => [...p, { x: locationX, y: locationY }].slice(-300));
+      }}
+      onResponderRelease={() => {
+        onSetScrollEnabled?.(true);
+        setIsTracing(false);
+      }}
+      onResponderTerminate={() => {
+        onSetScrollEnabled?.(true);
+        setIsTracing(false);
+      }}
+    >
+        {/* Use actual pixel coordinates — NO viewBox scaling */}
+        <Svg
+          width={containerWidth}
+          height={containerHeight}
         >
-          <Svg width="100%" height="200" viewBox="0 0 320 200">
-            {/* Guide path */}
-            <Path
-              d={TRACE_PATH}
-              stroke="#94a3b8"
-              strokeWidth={4}
-              fill="none"
-              strokeDasharray="8 6"
-            />
-            {/* Waypoint targets */}
-            {PATH_WAYPOINTS.map((wp, i) => (
-              <Circle key={i} cx={wp.x} cy={wp.y} r={3} fill="#94a3b855" />
-            ))}
-            {/* User trace dots */}
-            {pts.map((p, i) => (
-              <Circle key={i} cx={p.x} cy={p.y} r={5} fill={t.colors.primary + "cc"} />
-            ))}
-          </Svg>
-        </Pressable>
+          {/* Scale the path to fit the actual container size */}
+          <Path
+            d={scalePath(TRACE_PATH, containerWidth, containerHeight)}
+            stroke="#94a3b8"
+            strokeWidth={4}
+            fill="none"
+            strokeDasharray="8 6"
+          />
+          {scaleWaypoints(PATH_WAYPOINTS, containerWidth, containerHeight).map((wp, i) => (
+            <Circle key={i} cx={wp.x} cy={wp.y} r={4} fill="#94a3b855" />
+          ))}
+          {pts.map((p, i) => (
+            <Circle key={i} cx={p.x} cy={p.y} r={6} fill={t.colors.primary + "cc"} />
+          ))}
+        </Svg>
       </View>
 
       <StemText variant="caption" style={{ color: t.colors.muted, marginBottom: 8 }}>
@@ -393,19 +469,33 @@ function TracePhase({
       {!finished ? (
         <View style={{ flexDirection: "row", gap: 8 }}>
           <StemButton title="Clear" variant="ghost" onPress={reset} />
-          <StemButton title="Finish tracing" onPress={finish} disabled={pts.length < 3} />
+          <StemButton
+            title="Finish tracing"
+            onPress={finish}
+            disabled={pts.length < 3}
+          />
         </View>
       ) : (
-        <View style={[styles.resultBox, { borderColor: t.colors.primary, backgroundColor: t.colors.primary + "11" }]}>
+        <View style={[styles.resultBox, {
+          borderColor: t.colors.primary,
+          backgroundColor: t.colors.primary + "11",
+        }]}>
           <StemText variant="h2" style={{ color: t.colors.primary, textAlign: "center" }}>
             {score}% accuracy
           </StemText>
           <StemText variant="small" style={{ color: t.colors.muted, textAlign: "center" }}>
-            {score != null && score >= 80 ? "🎯 Excellent tracing!" : score != null && score >= 50 ? "👍 Good effort" : "Keep practising!"}
+            {score != null && score >= 80
+              ? "🎯 Excellent tracing!"
+              : score != null && score >= 50
+              ? "👍 Good effort"
+              : "Keep practising!"}
           </StemText>
           <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
             <StemButton title="Retry" variant="secondary" onPress={reset} />
-            <StemButton title="Save & continue" onPress={() => score != null && onComplete(score)} />
+            <StemButton
+              title="Save & continue"
+              onPress={() => score != null && onComplete(score)}
+            />
           </View>
         </View>
       )}

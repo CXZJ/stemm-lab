@@ -187,6 +187,7 @@ function FieldEditor({
 export function ActivityEngine({ activityId }: { activityId: string }) {
   const t = useStemTheme();
   const router = useRouter();
+  const [scrollEnabled, setScrollEnabled] = useState(true);
   const team = useTeamStore((s) => s.team);
   const user = useAuthStore((s) => s.firebaseUser);
   const simple = useSettingsStore((s) => s.primarySchoolMode);
@@ -378,6 +379,7 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
 
   return (
     <Screen
+      scrollEnabled={scrollEnabled}
       footer={
         <View style={[styles.footer, { backgroundColor: t.colors.card, borderColor: t.colors.border }]}>
           <StemButton title="Save draft" variant="secondary" onPress={onSaveDraft} />
@@ -451,6 +453,7 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
           ttsEnabled={ttsEnabled}
           speak={speak}
           isSpeaking={isSpeaking}
+          onSetScrollEnabled={setScrollEnabled}  
         />
       )}
       {config.nativeExtension === "breathing" && (

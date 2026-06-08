@@ -13,12 +13,14 @@ import { useStemTheme } from "@/theme/ThemeProvider";
 export function Screen({
   children,
   scroll = true,
+  scrollEnabled = true,  
   footer,
   contentStyle,
   safeBottom = false,
 }: {
   children: ReactNode;
   scroll?: boolean;
+  scrollEnabled?: boolean;  
   footer?: ReactNode;
   contentStyle?: ViewStyle;
   safeBottom?: boolean;
@@ -36,6 +38,7 @@ export function Screen({
     <ScrollView
       contentContainerStyle={[styles.scroll, contentStyle]}
       keyboardShouldPersistTaps="handled"
+      scrollEnabled={scrollEnabled}
     >
       {children}
     </ScrollView>

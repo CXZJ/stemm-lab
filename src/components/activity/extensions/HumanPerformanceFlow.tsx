@@ -11,8 +11,7 @@ import { StyleSheet, TextInput, View } from "react-native";
 interface AttemptResult {
   attemptNumber: number;
   memberName: string;
-  speedLabel: string;
-  durationSec: number;
+  movementLabel: string;
   prediction: string;
   peakMag: number;
   outcome: string;
@@ -21,41 +20,37 @@ interface AttemptResult {
   ratingColor: string;
 }
 
-type AttemptStep = "predict" | "measure" | "compare";
+type AttemptStep = "pick_movement" | "predict" | "measure" | "compare";
 
-// ── Speed attempts — same movement at 3 speeds ─────────────────────────────────
-const SPEED_ATTEMPTS = [
+// ── 3 Movements from spec diagram ─────────────────────────────────────────────
+const MOVEMENTS = [
   {
     index: 1,
-    speedLabel: "Slow",
-    durationSec: 20,
-    instruction: "Perform the movement as slowly and smoothly as possible over 20 seconds.",
-    instructionSimple: "Move really slowly for 20 seconds. Try not to wobble!",
-    tip: "Slow movements should have the lowest vibration.",
+    label: "Movement 1 — Circle / Figure-8",
+    instruction: "Hold the phone in your hand. Rotate your hand in a circle, then in a figure-8 pattern. Keep it smooth and controlled.",
+    instructionSimple: "Hold phone and draw circles in the air with your hand!",
+    tip: "Try to keep your wrist loose and the movement even.",
+    emoji: "⭕",
   },
   {
     index: 2,
-    speedLabel: "Medium",
-    durationSec: 10,
-    instruction: "Perform the same movement at a medium pace over 10 seconds.",
-    instructionSimple: "Move at a normal speed for 10 seconds.",
-    tip: "Does medium speed feel harder to control than slow?",
+    label: "Movement 2 — Up and Down",
+    instruction: "Hold the phone and move your arm up and down slowly and smoothly, like a slow pump.",
+    instructionSimple: "Move your arm up and down slowly while holding the phone.",
+    tip: "The smoother you go, the lower the vibration reading.",
+    emoji: "↕️",
   },
   {
     index: 3,
-    speedLabel: "Fast",
-    durationSec: 5,
-    instruction: "Perform the same movement as quickly as you can over 5 seconds.",
-    instructionSimple: "Move fast for 5 seconds!",
-    tip: "Faster movements usually cause more vibration — less control.",
+    label: "Movement 3 — Side to Side",
+    instruction: "Hold the phone and move your arm from left to right and back again, slowly and steadily.",
+    instructionSimple: "Move your arm left and right slowly while holding the phone.",
+    tip: "Try to keep the speed the same going both directions.",
+    emoji: "↔️",
   },
 ];
 
-// ── The movement everyone does ─────────────────────────────────────────────────
-const BASE_MOVEMENT =
-  "Raise your arm slowly from your side to above your head, then back down.";
-const BASE_MOVEMENT_SIMPLE =
-  "Lift your arm up and back down again.";
+const SAMPLE_DURATION_SEC = 10;
 
 // ── Vibration rating ───────────────────────────────────────────────────────────
 function getRating(mag: number): { label: string; color: string; emoji: string } {
@@ -68,7 +63,7 @@ function getRating(mag: number): { label: string; color: string; emoji: string }
 }
 
 const DESCRIPTION =
-  "Do the same arm movement at 3 different speeds. See how speed affects vibration and smoothness.";
+  "Each team member picks a movement, predicts the vibration, then measures it with the phone sensor.";
 
 // ── Countdown hook ─────────────────────────────────────────────────────────────
 function useCountdown(totalSec: number, active: boolean) {
@@ -119,40 +114,32 @@ export function HumanPerformanceFlow({
 
   const [started, setStarted] = useState(false);
   const [memberIndex, setMemberIndex] = useState(0);
-  const [attemptIndex, setAttemptIndex] = useState(0);
-  const [attemptStep, setAttemptStep] = useState<AttemptStep>("predict");
+  const [selectedMovement, setSelectedMovement] = useState<typeof MOVEMENTS[0] | null>(null);
+  const [attemptStep, setAttemptStep] = useState<AttemptStep>("pick_movement");
   const [results, setResults] = useState<AttemptResult[]>([]);
   const [done, setDone] = useState(false);
 
-  // Per-attempt state
   const [prediction, setPrediction] = useState("");
   const [wasRight, setWasRight] = useState<boolean | null>(null);
 
   const accel = useAccelSample();
   const currentMember = memberNames[memberIndex] ?? "Member 1";
-  const currentAttempt = SPEED_ATTEMPTS[attemptIndex];
   const attemptNumber = results.length + 1;
 
-  // Countdown timer — only active while sampling
-  const countdown = useCountdown(currentAttempt.durationSec, accel.sampling);
-
-  // Progress percentage for countdown bar
-  const countdownPct = accel.sampling
-    ? (countdown / currentAttempt.durationSec) * 100
-    : 0;
+  const countdown = useCountdown(SAMPLE_DURATION_SEC, accel.sampling);
+  const countdownPct = accel.sampling ? (countdown / SAMPLE_DURATION_SEC) * 100 : 0;
 
   // ── Save attempt ─────────────────────────────────────────────────────────
   const saveAttempt = () => {
-    if (accel.maxMag == null) return;
+    if (accel.maxMag == null || selectedMovement == null) return;
     const mag = accel.maxMag;
     const rating = getRating(mag);
-    const outcome = `${mag.toFixed(3)} G in ${currentAttempt.durationSec}s — ${rating.label}`;
+    const outcome = `${mag.toFixed(3)} G — ${rating.label}`;
 
     const result: AttemptResult = {
       attemptNumber,
       memberName: currentMember,
-      speedLabel: currentAttempt.speedLabel,
-      durationSec: currentAttempt.durationSec,
+      movementLabel: selectedMovement.label,
       prediction,
       peakMag: mag,
       outcome,
@@ -164,7 +151,6 @@ export function HumanPerformanceFlow({
     const updated = [...results, result];
     setResults(updated);
 
-    // Aggregate across ALL attempts from ALL members
     const allMags = updated.map((r) => r.peakMag);
     const avg = allMags.reduce((a, b) => a + b) / allMags.length;
     const peak = Math.max(...allMags);
@@ -172,15 +158,14 @@ export function HumanPerformanceFlow({
     onUpdate({
       vibrationProxy: Math.round(avg * 1000) / 1000,
       accelMagnitudeMax: Math.round(peak * 1000) / 1000,
-      attemptLabel: `${currentMember} - ${currentAttempt.speedLabel} (${currentAttempt.durationSec}s)`,
+      attemptLabel: `${currentMember} - ${selectedMovement.label}`,
       prediction,
       result: outcome,
       allAttempts: JSON.stringify(
         updated.map((r) => ({
           attempt: r.attemptNumber,
           member: r.memberName,
-          speed: r.speedLabel,
-          durationSec: r.durationSec,
+          movement: r.movementLabel,
           prediction: r.prediction,
           peakG: r.peakMag,
           outcome: r.outcome,
@@ -190,16 +175,22 @@ export function HumanPerformanceFlow({
       ),
     });
 
-    // Reset for next attempt
+    // Reset for next member
     setPrediction("");
     setWasRight(null);
-    setAttemptStep("predict");
+    setSelectedMovement(null);
+    setAttemptStep("pick_movement");
 
-    // Advance speed attempt → member → done
-    if (attemptIndex < SPEED_ATTEMPTS.length - 1) {
-      setAttemptIndex((i) => i + 1);
+    // Count how many movements this member has now done
+    const memberDoneCount = updated.filter(
+      (r) => r.memberName === currentMember
+    ).length;
+
+    if (memberDoneCount < MOVEMENTS.length) {
+      // Same member, more movements to do
+      setAttemptStep("pick_movement");
     } else if (memberIndex < memberNames.length - 1) {
-      setAttemptIndex(0);
+      // Move to next member
       setMemberIndex((i) => i + 1);
     } else {
       setDone(true);
@@ -222,20 +213,22 @@ export function HumanPerformanceFlow({
             onPress={() => speak("perf-desc", DESCRIPTION)}
           />
         )}
-        <View style={[styles.movementBox, { backgroundColor: t.colors.card, borderColor: t.colors.border }]}>
-          <StemText variant="body" style={{ fontWeight: "bold" }}>
-            The movement:
-          </StemText>
-          <StemText variant="body">
-            {simple ? BASE_MOVEMENT_SIMPLE : BASE_MOVEMENT}
-          </StemText>
-          <StemText variant="small" style={{ color: t.colors.muted, marginTop: 4 }}>
-            You'll do this 3 times — slow (20s), medium (10s), fast (5s).
-          </StemText>
-        </View>
         <StemText variant="small" style={{ color: t.colors.muted }}>
-          {memberNames.length} member(s) · 3 speed attempts each
+          {memberNames.length} member(s) · 1 movement each · {SAMPLE_DURATION_SEC}s sample
         </StemText>
+
+        {/* Preview all 3 movements */}
+        {MOVEMENTS.map((m) => (
+          <View key={m.index} style={[styles.movementBox, { backgroundColor: t.colors.card, borderColor: t.colors.border }]}>
+            <StemText variant="body" style={{ fontWeight: "bold" }}>
+              {m.emoji} {m.label}
+            </StemText>
+            <StemText variant="small" style={{ color: t.colors.muted }}>
+              {simple ? m.instructionSimple : m.instruction}
+            </StemText>
+          </View>
+        ))}
+
         <StemButton title="Start Lab" onPress={() => setStarted(true)} />
       </View>
     );
@@ -243,75 +236,55 @@ export function HumanPerformanceFlow({
 
   // ── Done screen ──────────────────────────────────────────────────────────
   if (done) {
-    // Which speed was hardest (highest avg G)
-    const bySpeed: Record<string, number[]> = {};
+    const byMovement: Record<string, number[]> = {};
     for (const r of results) {
-      if (!bySpeed[r.speedLabel]) bySpeed[r.speedLabel] = [];
-      bySpeed[r.speedLabel].push(r.peakMag);
+      if (!byMovement[r.movementLabel]) byMovement[r.movementLabel] = [];
+      byMovement[r.movementLabel].push(r.peakMag);
     }
-    const speedAvgs = Object.entries(bySpeed).map(([label, mags]) => ({
-      label,
-      avg: mags.reduce((a, b) => a + b) / mags.length,
-    }));
-    const hardest = [...speedAvgs].sort((a, b) => b.avg - a.avg)[0];
-    const smoothest = [...speedAvgs].sort((a, b) => a.avg - b.avg)[0];
+    const hardest = Object.entries(byMovement)
+      .map(([label, mags]) => ({ label, avg: mags.reduce((a, b) => a + b) / mags.length }))
+      .sort((a, b) => b.avg - a.avg)[0];
 
-    // Per member avg
     const byMember: Record<string, number[]> = {};
     for (const r of results) {
       if (!byMember[r.memberName]) byMember[r.memberName] = [];
       byMember[r.memberName].push(r.peakMag);
     }
-    const memberAvgs = Object.entries(byMember).map(([name, mags]) => ({
-      name,
-      avg: mags.reduce((a, b) => a + b) / mags.length,
-    }));
-    const bestMember = [...memberAvgs].sort((a, b) => a.avg - b.avg)[0];
+    const bestMember = Object.entries(byMember)
+      .map(([name, mags]) => ({ name, avg: mags.reduce((a, b) => a + b) / mags.length }))
+      .sort((a, b) => a.avg - b.avg)[0];
 
     return (
       <View style={[styles.box, { borderColor: t.colors.border }]}>
         <StemText variant="h2">✅ Lab Complete</StemText>
 
-        {/* Key findings */}
         {hardest && (
           <View style={[styles.highlightBox, { borderColor: t.colors.warning, backgroundColor: t.colors.warning + "18" }]}>
             <StemText variant="small" style={{ fontWeight: "bold", color: t.colors.warning }}>
-              📳 Hardest speed to keep smooth:
+              📳 Hardest to keep vibration low:
             </StemText>
             <StemText variant="small" style={{ color: t.colors.warning }}>
-              {hardest.label} speed (avg {hardest.avg.toFixed(3)} G)
-            </StemText>
-          </View>
-        )}
-        {smoothest && (
-          <View style={[styles.highlightBox, { borderColor: t.colors.success, backgroundColor: t.colors.success + "18" }]}>
-            <StemText variant="small" style={{ fontWeight: "bold", color: t.colors.success }}>
-              🌊 Smoothest speed:
-            </StemText>
-            <StemText variant="small" style={{ color: t.colors.success }}>
-              {smoothest.label} speed (avg {smoothest.avg.toFixed(3)} G)
+              {hardest.label} (avg {hardest.avg.toFixed(3)} G)
             </StemText>
           </View>
         )}
         {bestMember && memberNames.length > 1 && (
-          <View style={[styles.highlightBox, { borderColor: t.colors.primary, backgroundColor: t.colors.primary + "18" }]}>
-            <StemText variant="small" style={{ fontWeight: "bold", color: t.colors.primary }}>
+          <View style={[styles.highlightBox, { borderColor: t.colors.success, backgroundColor: t.colors.success + "18" }]}>
+            <StemText variant="small" style={{ fontWeight: "bold", color: t.colors.success }}>
               🏆 Smoothest performer:
             </StemText>
-            <StemText variant="small" style={{ color: t.colors.primary }}>
+            <StemText variant="small" style={{ color: t.colors.success }}>
               {bestMember.name} (avg {bestMember.avg.toFixed(3)} G)
             </StemText>
           </View>
         )}
 
-        {/* Full results table */}
-        <StemText variant="body" style={{ fontWeight: "bold", marginTop: 8 }}>
-          All Results
-        </StemText>
+        {/* Results table */}
+        <StemText variant="body" style={{ fontWeight: "bold", marginTop: 8 }}>All Results</StemText>
         <View style={[styles.tableHeader, { backgroundColor: t.colors.card }]}>
           <StemText variant="small" style={[styles.colNum, styles.bold]}>#</StemText>
           <StemText variant="small" style={[styles.colMember, styles.bold]}>Member</StemText>
-          <StemText variant="small" style={[styles.colSpeed, styles.bold]}>Speed</StemText>
+          <StemText variant="small" style={[styles.colMovement, styles.bold]}>Movement</StemText>
           <StemText variant="small" style={[styles.colPredict, styles.bold]}>Prediction</StemText>
           <StemText variant="small" style={[styles.colOutcome, styles.bold]}>Outcome</StemText>
           <StemText variant="small" style={[styles.colRight, styles.bold]}>✓?</StemText>
@@ -320,8 +293,8 @@ export function HumanPerformanceFlow({
           <View key={i} style={[styles.tableRow, { borderColor: t.colors.border }]}>
             <StemText variant="small" style={styles.colNum}>{r.attemptNumber}</StemText>
             <StemText variant="small" style={styles.colMember}>{r.memberName}</StemText>
-            <StemText variant="small" style={[styles.colSpeed, { color: t.colors.primary }]}>
-              {r.speedLabel}{"\n"}({r.durationSec}s)
+            <StemText variant="small" style={[styles.colMovement, { color: t.colors.primary }]}>
+              {r.movementLabel.split("—")[0]}
             </StemText>
             <StemText variant="small" style={styles.colPredict}>{r.prediction || "—"}</StemText>
             <StemText variant="small" style={[styles.colOutcome, { color: r.ratingColor }]}>
@@ -342,8 +315,8 @@ export function HumanPerformanceFlow({
             setStarted(false);
             setDone(false);
             setMemberIndex(0);
-            setAttemptIndex(0);
-            setAttemptStep("predict");
+            setSelectedMovement(null);
+            setAttemptStep("pick_movement");
             setResults([]);
             setPrediction("");
             setWasRight(null);
@@ -363,49 +336,58 @@ export function HumanPerformanceFlow({
       {/* Progress */}
       <View style={[styles.progressBar, { backgroundColor: t.colors.card }]}>
         <StemText variant="small" style={{ color: t.colors.primary, fontWeight: "bold" }}>
-          {currentAttempt.speedLabel} speed — {currentAttempt.durationSec}s
+          👤 {currentMember} ({memberIndex + 1}/{memberNames.length})
         </StemText>
         <StemText variant="small" style={{ color: t.colors.muted }}>
-          👤 {currentMember} ({memberIndex + 1}/{memberNames.length}) · Attempt {attemptNumber} of {memberNames.length * SPEED_ATTEMPTS.length}
+          Movement {results.filter((r) => r.memberName === currentMember).length + 1} of {MOVEMENTS.length}
         </StemText>
-        {/* Speed progress dots */}
-        <View style={{ flexDirection: "row", gap: 6, marginTop: 4 }}>
-          {SPEED_ATTEMPTS.map((a, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                {
-                  backgroundColor:
-                    i < attemptIndex
-                      ? t.colors.success
-                      : i === attemptIndex
-                      ? t.colors.primary
-                      : t.colors.border,
-                },
-              ]}
+      </View>
+
+      {/* ── Step 0: Pick movement ── */}
+      {attemptStep === "pick_movement" && (
+        <View style={[styles.stepBox, { borderColor: t.colors.border }]}>
+          <StemText variant="body" style={{ fontWeight: "bold" }}>
+            Pick a movement 🎯
+          </StemText>
+          <StemText variant="small" style={{ color: t.colors.muted }}>
+            {currentMember}, choose which movement you want to do:
+          </StemText>
+          {MOVEMENTS.map((m) => {
+          const alreadyDone = results.some(
+            (r) => r.memberName === currentMember && r.movementLabel === m.label
+          );
+          return (
+            <StemButton
+              key={m.index}
+              title={alreadyDone ? `${m.emoji} ${m.label} ✅ Done` : `${m.emoji} ${m.label}`}
+              variant={selectedMovement?.index === m.index ? "primary" : "secondary"}
+              onPress={() => !alreadyDone && setSelectedMovement(m)}
+              disabled={alreadyDone}
             />
-          ))}
+          );
+        })}
+          <StemButton
+            title="Confirm movement →"
+            onPress={() => setAttemptStep("predict")}
+            disabled={selectedMovement == null}
+          />
         </View>
-      </View>
+      )}
 
-      {/* Movement reminder */}
-      <View style={[styles.movementBox, { backgroundColor: t.colors.card, borderColor: t.colors.border }]}>
-        <StemText variant="small" style={{ color: t.colors.muted, fontWeight: "bold" }}>
-          Movement:
-        </StemText>
-        <StemText variant="small">
-          {simple ? BASE_MOVEMENT_SIMPLE : BASE_MOVEMENT}
-        </StemText>
-      </View>
-
-      {/* Speed instruction */}
-      <StemText variant="body">
-        {simple ? currentAttempt.instructionSimple : currentAttempt.instruction}
-      </StemText>
-      <StemText variant="small" style={{ color: t.colors.muted, fontStyle: "italic" }}>
-        💡 {currentAttempt.tip}
-      </StemText>
+      {/* Show selected movement instruction */}
+      {selectedMovement && attemptStep !== "pick_movement" && (
+        <View style={[styles.movementBox, { backgroundColor: t.colors.card, borderColor: t.colors.border }]}>
+          <StemText variant="small" style={{ fontWeight: "bold" }}>
+            {selectedMovement.emoji} {selectedMovement.label}
+          </StemText>
+          <StemText variant="small" style={{ color: t.colors.muted }}>
+            {simple ? selectedMovement.instructionSimple : selectedMovement.instruction}
+          </StemText>
+          <StemText variant="small" style={{ color: t.colors.muted, fontStyle: "italic" }}>
+            💡 {selectedMovement.tip}
+          </StemText>
+        </View>
+      )}
 
       {/* ── Step 1: Predict ── */}
       {attemptStep === "predict" && (
@@ -415,8 +397,8 @@ export function HumanPerformanceFlow({
           </StemText>
           <StemText variant="small" style={{ color: t.colors.muted }}>
             {simple
-              ? "Will the phone vibrate a lot or a little at this speed?"
-              : `Predict the vibration for the ${currentAttempt.speedLabel.toLowerCase()} speed attempt (e.g. Low / 0.2G / very smooth)`}
+              ? "Will the phone vibrate a lot or a little?"
+              : "Predict the phone vibration reading (e.g. Low / 0.2G / very smooth)"}
           </StemText>
           <TextInput
             style={[styles.input, {
@@ -424,13 +406,7 @@ export function HumanPerformanceFlow({
               color: t.colors.text,
               backgroundColor: t.colors.card,
             }]}
-            placeholder={
-              currentAttempt.speedLabel === "Slow"
-                ? "e.g. Very smooth, low vibration around 0.1G"
-                : currentAttempt.speedLabel === "Medium"
-                ? "e.g. Some vibration, around 0.3G"
-                : "e.g. High vibration, hard to control"
-            }
+            placeholder="e.g. Low vibration, around 0.2G"
             placeholderTextColor={t.colors.muted}
             value={prediction}
             onChangeText={setPrediction}
@@ -450,41 +426,33 @@ export function HumanPerformanceFlow({
             Step 2 — Measure 📡
           </StemText>
           <StemText variant="small" style={{ color: t.colors.muted }}>
-            Press start, then perform the movement for {currentAttempt.durationSec} seconds.
+            Press start then perform the movement for {SAMPLE_DURATION_SEC} seconds.
           </StemText>
 
-          {/* Countdown + progress bar */}
           {accel.sampling && (
             <View style={[styles.samplingBox, { borderColor: t.colors.primary }]}>
               <StemText variant="h1" style={{ color: t.colors.primary, textAlign: "center", fontSize: 52 }}>
                 {countdown}s
               </StemText>
               <StemText variant="small" style={{ color: t.colors.primary, textAlign: "center" }}>
-                📡 Keep moving… {currentAttempt.speedLabel} pace
+                📡 Keep moving…
               </StemText>
-              {/* Progress bar */}
               <View style={[styles.progressTrack, { backgroundColor: t.colors.border }]}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      backgroundColor: t.colors.primary,
-                      width: `${100 - countdownPct}%` as any,
-                    },
-                  ]}
-                />
+                <View style={[styles.progressFill, {
+                  backgroundColor: t.colors.primary,
+                  width: `${100 - countdownPct}%` as any,
+                }]} />
               </View>
             </View>
           )}
 
-          {/* Result after sampling */}
           {accel.maxMag != null && !accel.sampling && rating && (
             <View style={[styles.resultBox, { borderColor: rating.color, backgroundColor: rating.color + "18" }]}>
               <StemText variant="h1" style={{ color: rating.color, textAlign: "center", fontSize: 44 }}>
                 {accel.maxMag.toFixed(3)} G
               </StemText>
               <StemText variant="small" style={{ color: rating.color, textAlign: "center" }}>
-                {rating.emoji} {rating.label} · in {currentAttempt.durationSec}s
+                {rating.emoji} {rating.label}
               </StemText>
             </View>
           )}
@@ -492,26 +460,17 @@ export function HumanPerformanceFlow({
           <View style={{ gap: 8 }}>
             {!accel.sampling && accel.maxMag == null && (
               <StemButton
-                title={`▶ Start ${currentAttempt.durationSec}s sample`}
-                onPress={() => accel.start(currentAttempt.durationSec * 1000)}
+                title={`▶ Start ${SAMPLE_DURATION_SEC}s sample`}
+                onPress={() => accel.start(SAMPLE_DURATION_SEC * 1000)}
               />
             )}
             {!accel.sampling && accel.maxMag != null && (
               <>
-                <StemButton
-                  title="🔁 Retry"
-                  variant="secondary"
-                  onPress={() => accel.start(currentAttempt.durationSec * 1000)}
-                />
-                <StemButton
-                  title="Compare result →"
-                  onPress={() => setAttemptStep("compare")}
-                />
+                <StemButton title="🔁 Retry" variant="secondary" onPress={() => accel.start(SAMPLE_DURATION_SEC * 1000)} />
+                <StemButton title="Compare result →" onPress={() => setAttemptStep("compare")} />
               </>
             )}
-            {accel.sampling && (
-              <StemButton title={`Sampling… ${countdown}s left`} disabled />
-            )}
+            {accel.sampling && <StemButton title={`Sampling… ${countdown}s left`} disabled />}
           </View>
         </View>
       )}
@@ -522,20 +481,15 @@ export function HumanPerformanceFlow({
           <StemText variant="body" style={{ fontWeight: "bold" }}>
             Step 3 — Were you right? 🎯
           </StemText>
-
           <View style={styles.compareRow}>
             <View style={[styles.compareBox, { borderColor: t.colors.border, backgroundColor: t.colors.card }]}>
-              <StemText variant="small" style={{ color: t.colors.muted, fontWeight: "bold" }}>
-                Your prediction
-              </StemText>
+              <StemText variant="small" style={{ color: t.colors.muted, fontWeight: "bold" }}>Your prediction</StemText>
               <StemText variant="small">{prediction}</StemText>
             </View>
             <View style={[styles.compareBox, { borderColor: rating.color, backgroundColor: rating.color + "18" }]}>
-              <StemText variant="small" style={{ color: rating.color, fontWeight: "bold" }}>
-                Outcome
-              </StemText>
+              <StemText variant="small" style={{ color: rating.color, fontWeight: "bold" }}>Outcome</StemText>
               <StemText variant="small" style={{ color: rating.color }}>
-                {accel.maxMag.toFixed(3)} G in {currentAttempt.durationSec}s{"\n"}{rating.emoji} {rating.label}
+                {accel.maxMag.toFixed(3)} G{"\n"}{rating.emoji} {rating.label}
               </StemText>
             </View>
           </View>
@@ -544,37 +498,22 @@ export function HumanPerformanceFlow({
             Was your prediction correct?
           </StemText>
           <View style={{ flexDirection: "row", gap: 8 }}>
-            <StemButton
-              title="✅ Yes"
-              variant={wasRight === true ? "primary" : "secondary"}
-              onPress={() => setWasRight(true)}
-            />
-            <StemButton
-              title="❌ No"
-              variant={wasRight === false ? "primary" : "secondary"}
-              onPress={() => setWasRight(false)}
-            />
+            <StemButton title="✅ Yes" variant={wasRight === true ? "primary" : "secondary"} onPress={() => setWasRight(true)} />
+            <StemButton title="❌ No" variant={wasRight === false ? "primary" : "secondary"} onPress={() => setWasRight(false)} />
           </View>
-
-          <StemButton
-            title="Save & next →"
-            onPress={saveAttempt}
-            disabled={wasRight === null}
-          />
+          <StemButton title="Save & next →" onPress={saveAttempt} disabled={wasRight === null} />
         </View>
       )}
 
       {/* Results so far */}
       {results.length > 0 && (
         <View style={{ marginTop: 8 }}>
-          <StemText variant="small" style={{ color: t.colors.muted, marginBottom: 4 }}>
-            Results so far:
-          </StemText>
+          <StemText variant="small" style={{ color: t.colors.muted, marginBottom: 4 }}>Results so far:</StemText>
           {results.map((r, i) => {
             const rr = getRating(r.peakMag);
             return (
               <StemText key={i} variant="small" style={{ color: rr.color }}>
-                {rr.emoji} {r.memberName} — {r.speedLabel} ({r.durationSec}s): {r.peakMag.toFixed(3)} G · {r.wasRight === true ? "✅" : r.wasRight === false ? "❌" : "—"}
+                {rr.emoji} {r.memberName} — {r.movementLabel.split("—")[0].trim()}: {r.peakMag.toFixed(3)} G · {r.wasRight === true ? "✅" : r.wasRight === false ? "❌" : "—"}
               </StemText>
             );
           })}
@@ -596,11 +535,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     gap: 2,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
   },
   movementBox: {
     borderWidth: 1,
@@ -678,7 +612,7 @@ const styles = StyleSheet.create({
   },
   colNum: { width: 20 },
   colMember: { width: 55 },
-  colSpeed: { width: 50 },
+  colMovement: { width: 55 },
   colPredict: { flex: 1 },
   colOutcome: { flex: 1 },
   colRight: { width: 28, textAlign: "center" },
