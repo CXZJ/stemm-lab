@@ -2,6 +2,7 @@ import { Screen } from "@/components/ui/Screen";
 import { StemButton } from "@/components/ui/StemButton";
 import { StemCard } from "@/components/ui/StemCard";
 import { StemText } from "@/components/ui/StemText";
+import { useBattery } from "@/hooks/useBattery";
 import { href } from "@/navigation/href";
 import { isFirebaseConfigured } from "@/services/firebase/config";
 import { useAuthStore } from "@/store/authStore";
@@ -14,6 +15,8 @@ import { Switch, View } from "react-native";
 export default function SettingsScreen() {
   const t = useStemTheme();
   
+  const batteryLevel = useBattery();
+
   const { signOut, firebaseUser: user } = useAuthStore();
   
   const primary = useSettingsStore((s) => s.primarySchoolMode);
@@ -92,6 +95,9 @@ export default function SettingsScreen() {
       <Link href={href("/(main)/debug")} asChild>
         <StemButton title="Developer / debug info" variant="ghost" />
       </Link>
+      <StemText>
+        Battery: {batteryLevel !== null ? `${Math.round(batteryLevel * 100)}%` : "Loading..."}
+      </StemText>
     </Screen>
   );
 }

@@ -16,11 +16,8 @@ export default function VerifyEmailScreen() {
   try {
     const authInstance = getAuth(); 
     if (authInstance.currentUser) {
-      // 1. Reload the user to get fresh data from server
       await authInstance.currentUser.reload();
       
-      // 2. Explicitly update your Zustand store with the fresh user
-      // This forces a re-render and triggers the _layout.tsx logic
       useAuthStore.setState({ firebaseUser: authInstance.currentUser });
       
       console.log("Verified status:", authInstance.currentUser.emailVerified);
