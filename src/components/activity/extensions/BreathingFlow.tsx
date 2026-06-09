@@ -376,9 +376,6 @@ export function BreathingFlow({
               <StemButton title="Start measuring →" onPress={() => { setExercising(false); setPhaseStep("measure"); }} />
             </>
           )}
-          {exercising && exerciseCountdown === 0 && (
-            <StemButton title="Start measuring →" onPress={() => { setExercising(false); setPhaseStep("measure"); }} />
-          )}
         </View>
       )}
 

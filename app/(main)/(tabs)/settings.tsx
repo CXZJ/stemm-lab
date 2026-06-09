@@ -13,8 +13,9 @@ import { Switch, View } from "react-native";
 
 export default function SettingsScreen() {
   const t = useStemTheme();
-  const signOut = useAuthStore((s) => s.signOut);
-  const user = useAuthStore((s) => s.firebaseUser);
+  
+  const { signOut, firebaseUser: user } = useAuthStore();
+  
   const primary = useSettingsStore((s) => s.primarySchoolMode);
   const setPrimary = useSettingsStore((s) => s.setPrimarySchoolMode);
   const themePref = useSettingsStore((s) => s.themePreference);
@@ -26,6 +27,7 @@ export default function SettingsScreen() {
   return (
     <Screen>
       <StemText variant="h1">Settings</StemText>
+      
       <StemCard title="Learning mode">
         <View style={{ flexDirection: "row", alignItems: "center", minHeight: 48 }}>
           <StemText variant="body" style={{ flex: 1 }}>
@@ -48,6 +50,7 @@ export default function SettingsScreen() {
           />
         </View>
       </StemCard>
+      
       <StemCard title="Appearance">
         <StemText variant="small" style={{ color: t.colors.muted, marginBottom: 8 }}>
           Theme preference
@@ -63,6 +66,7 @@ export default function SettingsScreen() {
           ))}
         </View>
       </StemCard>
+      
       <StemCard title="Account">
         {user ? (
           <StemText variant="body" style={{ marginBottom: 12 }}>
@@ -77,6 +81,7 @@ export default function SettingsScreen() {
           <StemButton title="Sign out" variant="danger" onPress={() => signOut()} />
         ) : null}
       </StemCard>
+
       <StemCard title="Team data on device">
         <StemButton
           title="Clear local team (sign out of device profile)"

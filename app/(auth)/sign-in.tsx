@@ -1,15 +1,15 @@
+import { Screen } from "@/components/ui/Screen";
+import { StemButton } from "@/components/ui/StemButton";
+import { StemText } from "@/components/ui/StemText";
+import { href } from "@/navigation/href";
+import { isFirebaseConfigured } from "@/services/firebase/config";
+import { useAuthStore } from "@/store/authStore";
+import { useStemTheme } from "@/theme/ThemeProvider";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useRouter } from "expo-router";
 import { useState } from "react";
-import { href } from "@/navigation/href";
 import { Controller, useForm } from "react-hook-form";
-import { TextInput, StyleSheet } from "react-native";
-import { StemButton } from "@/components/ui/StemButton";
-import { StemText } from "@/components/ui/StemText";
-import { Screen } from "@/components/ui/Screen";
-import { useAuthStore } from "@/store/authStore";
-import { isFirebaseConfigured } from "@/services/firebase/config";
-import { useStemTheme } from "@/theme/ThemeProvider";
+import { StyleSheet, TextInput } from "react-native";
 import { z } from "zod";
 
 const schema = z.object({
@@ -20,7 +20,9 @@ const schema = z.object({
 export default function SignInScreen() {
   const t = useStemTheme();
   const router = useRouter();
-  const signIn = useAuthStore((s) => s.signIn);
+  
+  // Pull only standard email sign-in from your cleaned store
+  const { signIn } = useAuthStore();
 
   const [signInError, setSignInError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -57,7 +59,7 @@ export default function SignInScreen() {
         Sign in to sync attempts, media, and leaderboards.
       </StemText>
 
-      {/* Firebase sign-in error (wrong email/password) */}
+      {/* Firebase sign-in error */}
       {signInError ? (
         <StemText variant="small" style={{ color: t.colors.danger, marginBottom: 8 }}>
           {signInError}

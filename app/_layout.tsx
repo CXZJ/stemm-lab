@@ -1,15 +1,15 @@
-import { useEffect } from "react";
-import { Stack, useRouter, useSegments } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { initMobileAds } from "@/services/adsInit";
-import { ThemeProvider } from "@/theme/ThemeProvider";
-import { useAuthStore } from "@/store/authStore";
-import { useTeamStore } from "@/store/teamStore";
-import { useSettingsStore } from "@/store/settingsStore";
+import { registerPushToken } from "@/services/notifications";
 import { openStemmDatabase } from "@/services/sqlite/database";
 import { registerBackgroundSync } from "@/services/sync/backgroundSync";
-import { registerPushToken } from "@/services/notifications";
+import { useAuthStore } from "@/store/authStore";
+import { useSettingsStore } from "@/store/settingsStore";
+import { useTeamStore } from "@/store/teamStore";
+import { ThemeProvider } from "@/theme/ThemeProvider";
+import { Stack, useRouter, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -45,13 +45,22 @@ export default function RootLayout() {
     if (!authReady) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    const isVerifyScreen = (segments as string[]).length > 1 && (segments as string[])[1] === "verify-email";
 
-    if (!user && !inAuthGroup) {
-      router.replace("/(auth)/sign-in");
-    } else if (user && inAuthGroup) {
-      router.replace("/(main)");
+    if (!user) {
+      if (!inAuthGroup) {
+        router.replace("/(auth)/sign-in");
+      }
+    } else if (!user.emailVerified) {
+      if (!isVerifyScreen) {
+        router.replace("/(auth)/verify-email");
+      }
+    } else {
+      if (inAuthGroup) {
+        router.replace("/(main)");
+      }
     }
-  }, [user, authReady, segments, router]);
+  }, [user, user?.emailVerified, authReady, segments, router]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

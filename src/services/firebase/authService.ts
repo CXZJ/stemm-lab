@@ -1,14 +1,16 @@
+import { getFirebaseApp } from "@/services/firebase/config";
 import {
   createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
+  sendEmailVerification,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
   type User,
 } from "firebase/auth";
 import { doc, getDoc, getFirestore, serverTimestamp, setDoc } from "firebase/firestore";
-import { getFirebaseApp } from "@/services/firebase/config";
+import { Alert } from "react-native";
 
 function auth() {
   const app = getFirebaseApp();
@@ -38,9 +40,25 @@ export async function signUpEmail(
 ): Promise<User> {
   const a = auth();
   if (!a) throw new Error("Firebase is not configured");
+
   const cred = await createUserWithEmailAndPassword(a, email, password);
+
+  try {
+    await sendEmailVerification(cred.user);
+    console.log("Verification email sent successfully");
+  } catch (err: any) {
+    console.error("Verification email failed:", err);
+    // This will pop an alert on your phone so you see the failure immediately
+    Alert.alert("Verification Error", err.message); 
+  }
+
+  await sendEmailVerification(cred.user).catch((err) => {
+    console.error("Failed to send verification email:", err);
+  });
+
   if (displayName)
     await updateProfile(cred.user, { displayName }).catch(() => {});
+  
   const firestore = db();
   if (firestore) {
     await setDoc(
@@ -54,6 +72,13 @@ export async function signUpEmail(
     );
   }
   return cred.user;
+}
+
+export async function resendVerificationEmail(): Promise<void> {
+  const a = auth();
+  if (a?.currentUser) {
+    await sendEmailVerification(a.currentUser);
+  }
 }
 
 export async function signInEmail(email: string, password: string): Promise<User> {

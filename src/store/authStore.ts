@@ -1,5 +1,3 @@
-import type { User as FirebaseUser } from "firebase/auth";
-import { create } from "zustand";
 import {
   fetchUserTeamId,
   signInEmail,
@@ -8,6 +6,9 @@ import {
   subscribeAuth,
 } from "@/services/firebase/authService";
 import { isFirebaseConfigured } from "@/services/firebase/config";
+import { router } from "expo-router";
+import type { User as FirebaseUser } from "firebase/auth";
+import { create } from "zustand";
 
 interface AuthState {
   firebaseUser: FirebaseUser | null;
@@ -15,6 +16,7 @@ interface AuthState {
   teamId: string | undefined;
   initializing: boolean;
   error: string | null;
+
   init: () => () => void;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
@@ -35,17 +37,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return () => {};
     }
     return subscribeAuth(async (u) => {
-      let teamId: string | undefined;
-      if (u) {
-        teamId = await fetchUserTeamId(u.uid);
-      }
-      set({
-        firebaseUser: u,
-        teamId,
-        initializing: false,
-        ready:true,
-        error: null,
-      });
+      let teamId;
+      if (u) teamId = await fetchUserTeamId(u.uid);
+      set({ firebaseUser: u, teamId, initializing: false, ready: true, error: null });
     });
   },
 
@@ -54,7 +48,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await signInEmail(email, password);
       await get().refreshTeamId();
-    } catch (e) {
+    } catch (e: any) {
       set({ error: e instanceof Error ? e.message : "Sign in failed" });
       throw e;
     }
@@ -72,8 +66,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
-    await signOutUser();
-    set({ firebaseUser: null, teamId: undefined });
+    try {
+      await signOutUser();
+    } catch (error) {
+      console.error("Sign out error:", error);
+    } finally {
+      set({ firebaseUser: null, teamId: undefined });
+      // FORCE the redirect here
+      router.replace("/(auth)/sign-in"); 
+    }
   },
 
   refreshTeamId: async () => {
