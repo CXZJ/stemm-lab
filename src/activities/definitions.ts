@@ -309,13 +309,13 @@ Use hearing-risk bands as guidance. Calibrate offset if you know your device bia
 export const handFan: ActivityConfig = {
   id: "hand_fan",
   title: "Hand Fan Challenge",
-  subjectArea: "Forces / Materials",
+  subjectArea: "Physics / Air Movement",
   description:
-    "Compare bending of paper or cardboard with different fan speeds and distances.",
-  descriptionSimple: "See how far the fan is and how much the paper bends.",
-  equipment: ["Paper / cardboard", "Fan", "Ruler / protractor"],
-  instructions: `Set fan distances 15, 30, and 45 cm. Record material, bend angle, notes, predictions and results.`,
-  instructionsSimple: "Try different distances. Write the bend angle.",
+    "Test how air movement from different fan designs affects paper and cardboard bending at various distances.",
+  descriptionSimple: "Fan paper from different distances and record how much it bends.",
+  equipment: ["Paper", "Cardboard", "Scissors", "Sticky tape", "Ruler / protractor"],
+  instructions: `1. Stand paper upright on a table.\n2. Fan air from 30cm away.\n3. Observe and record bend angle.\n4. Repeat with different fan designs at 15, 30, and 45cm.\n5. Repeat with cardboard instead of paper.`,
+  instructionsSimple: "Stand the paper up. Fan it from different distances. Write how much it bends!",
   timer: { showStopwatch: true },
   mediaRequirements: [
     { id: "photo_bend", kind: "photo", required: false, label: "Photo of bend" },
@@ -323,26 +323,12 @@ export const handFan: ActivityConfig = {
   sensorRequirements: [],
   customFields: [
     {
-      id: "materialType",
-      label: "Material",
-      type: "select",
-      options: [
-        { value: "paper", label: "Paper" },
-        { value: "cardboard", label: "Cardboard" },
-        { value: "other", label: "Other" },
-      ],
+      id: "bendAngleDeg",
+      label: "Bend angle (°)",
+      type: "number",
+      unit: "°",
+      advancedOnly: true,
     },
-    {
-      id: "fanDistanceCm",
-      label: "Fan distance",
-      type: "select",
-      options: [
-        { value: "15", label: "15 cm" },
-        { value: "30", label: "30 cm" },
-        { value: "45", label: "45 cm" },
-      ],
-    },
-    { id: "bendAngleDeg", label: "Bend angle (°)", type: "number", unit: "°" },
     {
       id: "notes",
       label: "Notes",
@@ -353,12 +339,14 @@ export const handFan: ActivityConfig = {
       id: "prediction",
       label: "Prediction",
       type: "textarea",
+      advancedOnly: true,
       placeholder: "e.g. We think the folded fan will move the paper more than the flat one",
     },
     {
       id: "result",
       label: "Result",
       type: "textarea",
+      advancedOnly: true,
       placeholder: "e.g. Design 1 bent the paper 30° at 15cm, only 5° at 45cm",
     },
   ],
@@ -369,11 +357,18 @@ export const handFan: ActivityConfig = {
       titleSimple: "Bend helper score",
       formulaKey: "fan_stiffness",
       inputFieldIds: ["bendAngleDeg", "fanDistanceCm"],
+      advancedOnly: true,
     },
   ],
-  reflectionPrompts: ["Which material bent more? Why?"],
+  reflectionPrompts: [
+    "Which fan design made the paper move the most?",
+    "How does material stiffness affect the bend angle?",
+    "How does distance from the fan affect bending?",
+  ],
+  reflectionPromptsSimple: ["Which design worked best? Why?"],
   ratingMaxStars: 5,
   leaderboard: { metricFieldId: "bendAngleDeg", higherIsBetter: true },
+  nativeExtension: "hand_fan",
 };
 
 export const earthquakeStructure: ActivityConfig = {

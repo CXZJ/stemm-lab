@@ -1,11 +1,12 @@
 import { getActivityConfig } from "@/activities";
 import { CameraCaptureModal } from "@/components/activity/CameraCaptureModal";
 import { BreathingFlow } from "@/components/activity/extensions/BreathingFlow";
+import { EarthquakeFlow } from "@/components/activity/extensions/EarthquakeFlow";
+import { HandFanFlow } from "@/components/activity/extensions/HandFanFlow";
+import { HumanPerformanceFlow } from "@/components/activity/extensions/HumanPerformanceFlow";
 import { ReactionBoardFlow } from "@/components/activity/extensions/ReactionBoardFlow";
 import { RoomNoiseMap } from "@/components/activity/extensions/RoomNoiseMap";
 import { SoundMeterPanel } from "@/components/activity/extensions/SoundMeterPanel";
-import { HumanPerformanceFlow } from "@/components/activity/extensions/HumanPerformanceFlow";
-import { EarthquakeFlow } from "@/components/activity/extensions/EarthquakeFlow";
 import { Screen } from "@/components/ui/Screen";
 import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemButton } from "@/components/ui/StemButton";
@@ -17,7 +18,7 @@ import { useSpeech } from "@/hooks/useSpeech";
 import { runActivityCalculations } from "@/lib/calculations/runActivityCalculations";
 import { newId } from "@/lib/id";
 import { href } from "@/navigation/href";
-import { upsertLocalAttempt } from "@/services/sqlite/attemptsLocal";
+import { getLocalAttempt, upsertLocalAttempt } from "@/services/sqlite/attemptsLocal";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTeamStore } from "@/store/teamStore";
@@ -30,7 +31,6 @@ import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, Switch, TextInput, TouchableOpacity, View } from "react-native";
-import { getLocalAttempt } from "@/services/sqlite/attemptsLocal";
 
 function buildDefaults(config: ActivityConfig): Record<string, string> {
   const d: Record<string, string> = {};
@@ -445,6 +445,16 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
           />
         )}
       </StemCard>
+
+      {config.nativeExtension === "hand_fan" && (
+        <HandFanFlow
+          simple={simple}
+          onUpdate={mergePatch}
+          ttsEnabled={ttsEnabled}
+          speak={speak}
+          isSpeaking={isSpeaking}
+        />
+      )}
 
       {config.nativeExtension === "reaction_board" && (
         <ReactionBoardFlow
