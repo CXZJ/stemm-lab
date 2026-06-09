@@ -174,6 +174,11 @@ export function BreathingFlow({
     );
     setAllResults(updated);
 
+    const allBpms = updated.flatMap((m) => m.phases.map((p) => p.bpm));
+    const avgBpm = allBpms.length > 0
+      ? Math.round(allBpms.reduce((a, b) => a + b) / allBpms.length)
+      : 0;
+
     onUpdate({
       breathCount: savedResult.breathCount,
       sampleDurationSec: savedResult.durationSec,
@@ -181,6 +186,7 @@ export function BreathingFlow({
       phase: currentPhase.id,
       prediction,
       result: `${savedResult.bpm} breaths/min`,
+      avgBpm,
       allAttempts: JSON.stringify(
         updated.flatMap((m) =>
           m.phases.map((p) => ({

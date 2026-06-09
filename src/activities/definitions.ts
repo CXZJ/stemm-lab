@@ -522,12 +522,6 @@ export const reactionBoard: ActivityConfig = {
   mediaRequirements: [],
   sensorRequirements: [],
   customFields: [
-    {
-      id: "memberName",
-      label: "Team member first name",
-      type: "text",
-      placeholder: "e.g. Sarah",
-    },
     { id: "handDominantMs", label: "Dominant hand avg (ms)", type: "number", advancedOnly: true },
     { id: "handOtherMs", label: "Other hand avg (ms)", type: "number", advancedOnly: true },
     { id: "traceScore", label: "Trace score (0–100)", type: "number", min: 0, max: 100 },
@@ -566,69 +560,25 @@ export const breathingPace: ActivityConfig = {
   mediaRequirements: [],
   sensorRequirements: [],
   customFields: [
-    {
-      id: "allAttempts",
-      label: "All attempt data",
-      type: "textarea",
-      advancedOnly: true,
-    },
-    {
-      id: "memberName",
-      label: "Team member measured",
-      type: "text",
-      advancedOnly: true,
-    },
-    {
-      id: "phase",
-      label: "Phase",
-      type: "select",
-      advancedOnly: true,
-      options: [
-        { value: "rest", label: "At rest" },
-        { value: "after_ex1", label: "After exercise 1" },
-        { value: "after_ex2", label: "After exercise 2" },
-      ],
-    },
-    { id: "breathCount", label: "Breaths counted", type: "number", min: 0, advancedOnly: true,},
-    { id: "sampleDurationSec", label: "Sample duration (s)", type: "number", min: 1,advancedOnly: true, },
-    {
-      id: "chestNote",
-      label: "Chest movement notes",
-      type: "textarea",
-      advancedOnly: true,
-      placeholder: "e.g. Chest rose much higher after exercise, breathing was faster and deeper",
-    },
-    {
-      id: "prediction",
-      label: "Prediction",
-      type: "textarea",
-      placeholder: "e.g. We think breathing rate will double after doing jumping jacks",
-    },
-    {
-      id: "result",
-      label: "Result",
-      type: "textarea",
-      placeholder: "e.g. Went from 15 breaths/min at rest to 28 breaths/min after exercise",
-    },
-    {
-      id: "notes",
-      label: "Notes",
-      type: "textarea",
-      placeholder: "e.g. Took about 2 minutes to return to a normal breathing rate",
-    },
+  { id: "avgBpm", label: "Average BPM", type: "number", advancedOnly: true },
+  {
+    id: "chestNote",
+    label: "Chest movement notes",
+    type: "textarea",
+    advancedOnly: true,
+    placeholder: "e.g. Chest rose much higher after exercise, breathing was faster and deeper",
+  },
+  {
+    id: "notes",
+    label: "Notes",
+    type: "textarea",
+    placeholder: "e.g. Took about 2 minutes to return to a normal breathing rate",
+  },
   ],
-  calculations: [
-    {
-      id: "bpm",
-      title: "Breaths per minute",
-      titleSimple: "Breaths per minute",
-      formulaKey: "breathing_bpm",
-      inputFieldIds: ["breathCount", "sampleDurationSec"],
-    },
-  ],
+  calculations: [],
   reflectionPrompts: ["How did exercise change your breathing?"],
   ratingMaxStars: 5,
-  leaderboard: { metricFieldId: "breathCount", higherIsBetter: false },
+  leaderboard: { metricFieldId: "avgBpm", higherIsBetter: false },
   nativeExtension: "breathing",
 };
 
