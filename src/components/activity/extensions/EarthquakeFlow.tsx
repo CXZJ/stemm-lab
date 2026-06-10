@@ -72,10 +72,16 @@ export function EarthquakeFlow({
     setDesigns(updated);
 
     // this to save to activity engine
+    
     const best = updated.reduce((a, b) => (a.peakMag < b.peakMag ? a : b));
+    // Inside saveDesign, change your multiplier to 100
+    const rawMovement = Math.max(0, best.peakMag - 1.0);
+
+    const calculatedScore = Math.min(10, Math.round(rawMovement * 6.66));
+
     onUpdate({
-      accelMagnitudeMax: Math.round(accel.maxMag * 1000) / 1000,
-      movementAmount: Math.round(Math.max(0, accel.maxMag - 1.0) * 10),
+      accelMagnitudeMax: Math.round(best.peakMag * 1000) / 1000,
+      movementAmount: calculatedScore, // This will now safely be 10 instead of 377!
       foldCount: best.folds,
       pillarCount: best.pillars,
     });
