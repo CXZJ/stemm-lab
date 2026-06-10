@@ -4,6 +4,7 @@ import { BreathingFlow } from "@/components/activity/extensions/BreathingFlow";
 import { EarthquakeFlow } from "@/components/activity/extensions/EarthquakeFlow";
 import { HandFanFlow } from "@/components/activity/extensions/HandFanFlow";
 import { HumanPerformanceFlow } from "@/components/activity/extensions/HumanPerformanceFlow";
+import { ParachuteDropFlow } from "@/components/activity/extensions/ParachuteDropFlow";
 import { ReactionBoardFlow } from "@/components/activity/extensions/ReactionBoardFlow";
 import { RoomNoiseMap } from "@/components/activity/extensions/RoomNoiseMap";
 import { SoundMeterPanel } from "@/components/activity/extensions/SoundMeterPanel";
@@ -445,6 +446,16 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
           />
         )}
       </StemCard>
+
+      {config.nativeExtension === "parachute_drop" && (
+        <ParachuteDropFlow
+          simple={simple}
+          onUpdate={mergePatch}
+          ttsEnabled={ttsEnabled}
+          speak={speak}
+          isSpeaking={isSpeaking}
+        />
+      )}
 
       {config.nativeExtension === "hand_fan" && (
         <HandFanFlow

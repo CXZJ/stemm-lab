@@ -34,23 +34,6 @@ export const parachuteDrop: ActivityConfig = {
   ],
   sensorRequirements: [],
   customFields: [
-    {
-      id: "prototypeIndex",
-      label: "Prototype # (1–3)",
-      labelSimple: "Which try (1, 2, or 3)?",
-      type: "select",
-      options: [
-        { value: "1", label: "Prototype 1" },
-        { value: "2", label: "Prototype 2" },
-        { value: "3", label: "Prototype 3" },
-      ],
-    },
-    {
-      id: "hasParachute",
-      label: "Using parachute?",
-      type: "boolean",
-      defaultValue: true,
-    },
     { id: "massKg", label: "Mass (kg)", type: "number", unit: "kg", step: 0.01 },
     {
       id: "dropHeightM",
@@ -73,15 +56,6 @@ export const parachuteDrop: ActivityConfig = {
       unit: "s",
       step: 0.001,
       advancedOnly: true,
-    },
-    {
-      id: "bounceMode",
-      label: "Landing style",
-      type: "select",
-      options: [
-        { value: "no_bounce", label: "No bounce (sticks)" },
-        { value: "bounce", label: "Bounce / roll" },
-      ],
     },
     {
       id: "impactSpeedMs",
@@ -136,11 +110,6 @@ export const parachuteDrop: ActivityConfig = {
       type: "textarea",
       placeholder: "e.g. We think prototype 2 will be slowest because it has the biggest canopy",
     },
-    {
-      id: "predictionCorrect",
-      label: "Was the prediction correct?",
-      type: "boolean",
-    },
   ],
   calculations: [
     {
@@ -191,6 +160,7 @@ export const parachuteDrop: ActivityConfig = {
     pointsPerCompletion: 10,
     pointsForImprovement: 5,
   },
+  nativeExtension: "parachute_drop",
 };
 
 export const soundPollution: ActivityConfig = {

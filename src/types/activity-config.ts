@@ -99,5 +99,5 @@ export interface ActivityConfig {
   ratingMaxStars: number;
   leaderboard: LeaderboardScoring;
   /** Optional native UI extension id */
-  nativeExtension?: "hand_fan" | "reaction_board" | "breathing" | "sound_hunter" | "room_map" | "human_performance" | "earthquake";
+  nativeExtension?: "parachute_drop" | "hand_fan" | "reaction_board" | "breathing" | "sound_hunter" | "room_map" | "human_performance" | "earthquake";
 }
