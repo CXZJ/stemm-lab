@@ -31,6 +31,13 @@ export const parachuteDrop: ActivityConfig = {
       label: "Video of test drop",
       labelSimple: "Video of your drop",
     },
+    {
+      id: "drop_report_file",
+      kind: "file", 
+      required: false,
+      label: "Upload files",
+      labelSimple: "Upload file",
+    },
   ],
   sensorRequirements: [],
   customFields: [
@@ -288,7 +295,20 @@ export const handFan: ActivityConfig = {
   instructionsSimple: "Stand the paper up. Fan it from different distances. Write how much it bends!",
   timer: { showStopwatch: true },
   mediaRequirements: [
-    { id: "photo_bend", kind: "photo", required: false, label: "Photo of bend" },
+    { 
+      id: "photo_bend", 
+      kind: "photo", 
+      required: false, 
+      label: "Photo of bend",
+      labelSimple: "Take a photo of the bending paper"
+    },
+    {
+      id: "fan_design_file",
+      kind: "file", 
+      required: false,
+      label: "Upload files",
+      labelSimple: "Upload file",
+    },
   ],
   sensorRequirements: [],
   customFields: [

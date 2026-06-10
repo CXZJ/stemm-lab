@@ -1,12 +1,14 @@
-import { useCallback, useState } from "react";
-import { newId } from "@/lib/id";
-import { runActivityCalculations } from "@/lib/calculations/runActivityCalculations";
 import { getActivityConfig } from "@/activities";
+import { runActivityCalculations } from "@/lib/calculations/runActivityCalculations";
+import { newId } from "@/lib/id";
 import { isFirebaseConfigured } from "@/services/firebase/config";
 import { getLocalUserId } from "@/services/localIdentity";
-import { isOnline, processSyncQueueOnce } from "@/services/sync/syncEngine";
 import { upsertLocalAttempt } from "@/services/sqlite/attemptsLocal";
 import { enqueueMediaUpload, enqueueSyncItem } from "@/services/sqlite/syncQueueLocal";
+import { isOnline, processSyncQueueOnce } from "@/services/sync/syncEngine";
+import { useAuthStore } from "@/store/authStore";
+import { useTeamStore } from "@/store/teamStore";
+import type { ActivityConfig } from "@/types/activity-config";
 import type {
   ActivityAttempt,
   AttemptMedia,
@@ -16,9 +18,7 @@ import type {
   Reflection,
   SensorReading,
 } from "@/types/models";
-import type { ActivityConfig } from "@/types/activity-config";
-import { useAuthStore } from "@/store/authStore";
-import { useTeamStore } from "@/store/teamStore";
+import { useCallback, useState } from "react";
 
 function metricValue(data: Record<string, unknown>, fieldId: string): number {
   const v = data[fieldId];
@@ -190,3 +190,4 @@ export function buildReflections(
 }
 
 export { getActivityConfig };
+

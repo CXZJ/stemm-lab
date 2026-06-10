@@ -2,7 +2,7 @@
  * Schema-driven activity definitions consumed by the shared activity engine.
  */
 
-export type MediaKind = "video" | "photo" | "audio";
+export type MediaKind = "video" | "photo" | "audio" | "file";
 
 export interface MediaRequirement {
   id: string;

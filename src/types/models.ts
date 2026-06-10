@@ -51,7 +51,7 @@ export interface AttemptMedia {
   /** Firebase Storage object path (set after upload). */
   storagePath: string;
   contentType: string;
-  kind: "video" | "photo" | "audio";
+  kind: "video" | "photo" | "audio" | "file";
   durationSec?: number;
   createdAt: number;
   /** Local file URI before upload completes (offline-first). */

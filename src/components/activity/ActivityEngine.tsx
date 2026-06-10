@@ -27,6 +27,7 @@ import { useStemTheme } from "@/theme/ThemeProvider";
 import { minTouch } from "@/theme/tokens";
 import type { ActivityConfig, CustomField } from "@/types/activity-config";
 import type { ActivityAttempt, SensorReading } from "@/types/models";
+import * as DocumentPicker from "expo-document-picker";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -221,7 +222,11 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
   }, [activityId, team]);
 
   const [ext, setExt] = useState<Record<string, unknown>>({});
-  const [pendingMedia, setPendingMedia] = useState<{ localUri: string; kind: "photo" | "video" | "audio"; contentType: string }[]>([]);
+  const [pendingMedia, setPendingMedia] = useState<{
+    localUri: string;
+    kind: "photo" | "video" | "audio" | "file";
+    contentType: string;
+  }[]>([]);
   const [sensors, setSensors] = useState<SensorReading[]>([]);
   const [reflectionTexts, setReflectionTexts] = useState<Record<string, string>>({});
   const [stars, setStars] = useState(0);
@@ -548,14 +553,39 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
         {config.mediaRequirements.map((m) => (
           <View key={m.id} style={{ marginBottom: 8 }}>
             <StemText variant="small">{simple ? m.labelSimple ?? m.label : m.label}</StemText>
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
-              {m.kind !== "audio" && (
-                <StemButton title="Photo" variant="secondary" onPress={() => setCapture("photo")} />
-              )}
-              {m.kind !== "photo" && (
-                <StemButton title="Video" variant="secondary" onPress={() => setCapture("video")} />
-              )}
-            </View>
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+                {m.kind === "file" ? (
+                  <StemButton
+                    title="Upload file"
+                    variant="secondary"
+                    onPress={async () => {
+                      const result = await DocumentPicker.getDocumentAsync({
+                        copyToCacheDirectory: true,
+                      });
+                      if (!result.canceled && result.assets?.[0]) {
+                        const asset = result.assets[0];
+                        setPendingMedia((p) => [
+                          ...p,
+                          {
+                            localUri: asset.uri,
+                            kind: "file",
+                            contentType: asset.mimeType ?? "application/octet-stream",
+                          },
+                        ]);
+                      }
+                    }}
+                  />
+                ) : (
+                  <>
+                    {m.kind !== "audio" && (
+                      <StemButton title="Photo" variant="secondary" onPress={() => setCapture("photo")} />
+                    )}
+                    {m.kind !== "photo" && (
+                      <StemButton title="Video" variant="secondary" onPress={() => setCapture("video")} />
+                    )}
+                  </>
+                )}
+              </View>
           </View>
         ))}
         {pendingMedia.length > 0 && (
