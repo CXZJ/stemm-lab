@@ -4,6 +4,7 @@ import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemCard } from "@/components/ui/StemCard";
 import { StemText } from "@/components/ui/StemText";
 import { useSpeech } from "@/hooks/useSpeech";
+import { bestMetricFromAttempts } from "@/lib/leaderboard";
 import { isFirebaseConfigured } from "@/services/firebase/config";
 import { subscribeLeaderboard } from "@/services/firebase/leaderboardService";
 import { listLocalAttempts } from "@/services/sqlite/attemptsLocal";
@@ -12,7 +13,8 @@ import { useTeamStore } from "@/store/teamStore";
 import { useStemTheme } from "@/theme/ThemeProvider";
 import type { LeaderboardEntry } from "@/types/models";
 import { Picker } from "@react-native-picker/picker";
-import { useEffect, useMemo, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 export default function LeaderboardScreen() {
@@ -26,35 +28,33 @@ export default function LeaderboardScreen() {
 
   const act = useMemo(() => ALL_ACTIVITIES.find((a) => a.id === activityId), [activityId]);
 
+  const loadLocalBest = useCallback(async () => {
+    if (!team || !act) {
+      setLocalBest(null);
+      return;
+    }
+    const rows = await listLocalAttempts({ teamId: team.id, activityId });
+    const { best, count } = bestMetricFromAttempts(rows, act.leaderboard);
+    setLocalBest(best != null ? { metric: best, count } : null);
+  }, [act, activityId, team]);
+
   useEffect(() => {
-    if (!isFirebaseConfigured() || !team) {
+    if (!isFirebaseConfigured() || !team || !act) {
       setRemote([]);
       return;
     }
-    const unsub = subscribeLeaderboard(activityId, team.gradeLevel, setRemote);
+    const unsub = subscribeLeaderboard(activityId, team.gradeLevel, {
+      higherIsBetter: act.leaderboard.higherIsBetter,
+      onData: setRemote,
+    });
     return unsub;
-  }, [activityId, team]);
-
-  useEffect(() => {
-    void (async () => {
-      if (!team || !act) {
-        setLocalBest(null);
-        return;
-      }
-      const rows = await listLocalAttempts({ teamId: team.id, activityId });
-      const field = act.leaderboard.metricFieldId;
-      let best = 0;
-      let count = 0;
-      for (const r of rows) {
-        count += 1;
-        const v = r.customData[field];
-        const n = typeof v === "number" ? v : typeof v === "string" ? parseFloat(v) || 0 : 0;
-        if (act.leaderboard.higherIsBetter) best = Math.max(best, n);
-        else if (count === 1 || n < best) best = n;
-      }
-      setLocalBest(count ? { metric: best, count } : null);
-    })();
   }, [act, activityId, team]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadLocalBest();
+    }, [loadLocalBest]),
+  );
 
   return (
     <Screen>
@@ -117,9 +117,13 @@ export default function LeaderboardScreen() {
       ) : null}
 
       {!isFirebaseConfigured() ? (
-        <StemText variant="body">Connect Firebase to load live leaderboards.</StemText>
+        <StemText variant="body">
+          Connect Firebase to load live leaderboards. Your on-device best score still updates when you submit attempts.
+        </StemText>
       ) : remote.length === 0 ? (
-        <StemText variant="body">No remote entries yet for this filter.</StemText>
+        <StemText variant="body">
+          No remote entries yet for this activity and grade. Submit an attempt while online to appear here.
+        </StemText>
       ) : (
         remote.map((e, i) => {
           const entryId = `entry-${e.id}`;

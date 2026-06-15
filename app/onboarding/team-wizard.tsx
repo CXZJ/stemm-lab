@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
 import { href } from "@/navigation/href";
 import { Controller, useForm } from "react-hook-form";
-import { TextInput, StyleSheet } from "react-native";
+import { Alert, TextInput, StyleSheet } from "react-native";
 import { StemButton } from "@/components/ui/StemButton";
 import { StemText } from "@/components/ui/StemText";
 import { Screen } from "@/components/ui/Screen";
@@ -23,6 +23,7 @@ export default function TeamWizardScreen() {
   const t = useStemTheme();
   const router = useRouter();
   const createTeam = useTeamStore((s) => s.createTeam);
+  const refreshTeamId = useAuthStore((s) => s.refreshTeamId);
   const { control, handleSubmit } = useForm({
     resolver: zodResolver(schema),
     defaultValues: { teamName: "", gradeLevel: "", membersRaw: "" },
@@ -86,21 +87,28 @@ export default function TeamWizardScreen() {
         title="Save team"
         style={{ marginTop: 24 }}
         onPress={handleSubmit(async (v) => {
-          const memberNames = v.membersRaw
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean);
-          const uid =
-            useAuthStore.getState().firebaseUser?.uid ?? (await getLocalUserId());
-          await createTeam({
-            name: v.teamName,
-            gradeLevel: v.gradeLevel,
-            memberNames,
-            uid,
-            useRemote: isFirebaseConfigured(),
-          });
-          await useAuthStore.getState().refreshTeamId();
-          router.replace(href("/"));
+          try {
+            const memberNames = v.membersRaw
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+            const uid =
+              useAuthStore.getState().firebaseUser?.uid ?? (await getLocalUserId());
+            await createTeam({
+              name: v.teamName,
+              gradeLevel: v.gradeLevel,
+              memberNames,
+              uid,
+              useRemote: isFirebaseConfigured(),
+            });
+            await refreshTeamId();
+            router.replace(href("/(main)/(tabs)"));
+          } catch (error) {
+            Alert.alert(
+              "Could not create team",
+              error instanceof Error ? error.message : "Please try again.",
+            );
+          }
         })}
       />
     </Screen>

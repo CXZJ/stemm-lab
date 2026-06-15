@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getFirestore,
   onSnapshot,
   query,
@@ -8,6 +9,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { getFirebaseApp } from "@/services/firebase/config";
+import { compareLeaderboardMetrics } from "@/lib/leaderboard";
 import type { LeaderboardEntry } from "@/types/models";
 
 function db() {
@@ -20,12 +22,34 @@ function boardDocId(activityId: string, gradeLevel: string) {
   return `${activityId}__${gradeLevel || "all"}`;
 }
 
-export async function upsertLeaderboardEntry(entry: LeaderboardEntry): Promise<void> {
+export async function upsertLeaderboardEntry(
+  entry: LeaderboardEntry,
+  higherIsBetter: boolean,
+): Promise<void> {
   const firestore = db();
   if (!firestore) throw new Error("Firebase is not configured");
   const parent = boardDocId(entry.activityId, entry.gradeLevel);
+  const ref = doc(firestore, "leaderboards", parent, "entries", entry.id);
+  const existing = await getDoc(ref);
+
+  if (existing.exists()) {
+    const prev = existing.data() as LeaderboardEntry;
+    const prevBest = prev.bestScore ?? prev.metricValue;
+    const newBest = entry.bestScore ?? entry.metricValue ?? 0;
+    if (typeof prevBest === "number" && !Number.isNaN(prevBest) && newBest > 0) {
+      entry.bestScore = higherIsBetter ? Math.max(prevBest, newBest) : Math.min(prevBest, newBest);
+    } else {
+      entry.bestScore = newBest;
+    }
+    entry.metricValue = entry.bestScore;
+    entry.completionCount = Math.max(prev.completionCount ?? 0, entry.completionCount ?? 1);
+  } else {
+    entry.bestScore = entry.bestScore ?? entry.metricValue ?? 0;
+    entry.metricValue = entry.bestScore;
+  }
+
   await setDoc(
-    doc(firestore, "leaderboards", parent, "entries", entry.id),
+    ref,
     {
       ...entry,
       updatedAt: serverTimestamp(),
@@ -37,8 +61,16 @@ export async function upsertLeaderboardEntry(entry: LeaderboardEntry): Promise<v
 export function subscribeLeaderboard(
   activityId: string,
   gradeLevel: string,
-  onData: (rows: LeaderboardEntry[]) => void,
+  options: {
+    higherIsBetter: boolean;
+    onData: (rows: LeaderboardEntry[]) => void;
+  },
 ): () => void {
+  const { higherIsBetter, onData } = options;
+  if (typeof onData !== "function") {
+    console.warn("subscribeLeaderboard: onData callback is missing");
+    return () => {};
+  }
   const firestore = db();
   if (!firestore) {
     onData([]);
@@ -50,7 +82,9 @@ export function subscribeLeaderboard(
     q,
     (snap) => {
       const rows = snap.docs.map((d) => d.data() as LeaderboardEntry);
-      rows.sort((a, b) => (b.metricValue ?? 0) - (a.metricValue ?? 0));
+      rows.sort((a, b) =>
+        compareLeaderboardMetrics(a.metricValue ?? 0, b.metricValue ?? 0, higherIsBetter),
+      );
       onData(rows);
     },
     () => onData([]),

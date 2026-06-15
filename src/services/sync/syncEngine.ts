@@ -1,4 +1,5 @@
 import NetInfo from "@react-native-community/netinfo";
+import { getActivityConfig } from "@/activities";
 import { saveAttemptRemote } from "@/services/firebase/attemptService";
 import { isFirebaseConfigured } from "@/services/firebase/config";
 import { uploadLocalFile } from "@/services/firebase/storageUpload";
@@ -56,7 +57,8 @@ export async function processSyncQueueOnce(): Promise<{ processed: number }> {
       }
       if (job.kind === "leaderboard") {
         const entry = JSON.parse(job.payload) as LeaderboardEntry;
-        await upsertLeaderboardEntry(entry);
+        const cfg = getActivityConfig(entry.activityId);
+        await upsertLeaderboardEntry(entry, cfg.leaderboard.higherIsBetter);
       }
       await markSyncDone(job.id);
       processed += 1;

@@ -1,9 +1,10 @@
 import { getActivityConfig } from "@/activities";
 import { runActivityCalculations } from "@/lib/calculations/runActivityCalculations";
+import { bestMetricFromAttempts, readMetric } from "@/lib/leaderboard";
 import { newId } from "@/lib/id";
 import { isFirebaseConfigured } from "@/services/firebase/config";
 import { getLocalUserId } from "@/services/localIdentity";
-import { upsertLocalAttempt } from "@/services/sqlite/attemptsLocal";
+import { listLocalAttempts, upsertLocalAttempt } from "@/services/sqlite/attemptsLocal";
 import { enqueueMediaUpload, enqueueSyncItem } from "@/services/sqlite/syncQueueLocal";
 import { isOnline, processSyncQueueOnce } from "@/services/sync/syncEngine";
 import { useAuthStore } from "@/store/authStore";
@@ -19,13 +20,6 @@ import type {
   SensorReading,
 } from "@/types/models";
 import { useCallback, useState } from "react";
-
-function metricValue(data: Record<string, unknown>, fieldId: string): number {
-  const v = data[fieldId];
-  if (typeof v === "number" && !Number.isNaN(v)) return v;
-  if (typeof v === "string" && v.trim() !== "") return parseFloat(v) || 0;
-  return 0;
-}
 
 export function useActivitySubmit(activityId: string) {
   const [busy, setBusy] = useState(false);
@@ -99,7 +93,9 @@ export function useActivitySubmit(activityId: string) {
           reflections: input.reflections,
           ratings: input.ratings,
           comments: input.comments,
-          score: metricValue(input.customData, cfg.leaderboard.metricFieldId),
+          score:
+            readMetric(input.customData, cfg.leaderboard.metricFieldId) ??
+            0,
           duplicateOf: input.duplicateOf,
         };
 
@@ -131,6 +127,12 @@ export function useActivitySubmit(activityId: string) {
           payload: attempt as unknown as Record<string, unknown>,
         });
 
+        const priorAttempts = await listLocalAttempts({ teamId: team.id, activityId });
+        const { best, count } = bestMetricFromAttempts(
+          [...priorAttempts.filter((a) => a.id !== id), attempt],
+          cfg.leaderboard,
+        );
+
         const online = await isOnline();
         const entryId = `${team.id}_${activityId}`;
         const entry = {
@@ -139,10 +141,10 @@ export function useActivitySubmit(activityId: string) {
           teamName: team.name,
           activityId,
           gradeLevel: team.gradeLevel,
-          metricValue: attempt.score ?? 0,
+          metricValue: best ?? attempt.score ?? 0,
           metricLabel: cfg.leaderboard.metricFieldId,
-          completionCount: 1,
-          bestScore: attempt.score ?? 0,
+          completionCount: count,
+          bestScore: best ?? attempt.score ?? 0,
           lastAttemptAt: Date.now(),
           updatedAt: Date.now(),
         };

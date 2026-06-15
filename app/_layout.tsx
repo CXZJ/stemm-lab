@@ -18,6 +18,8 @@ export default function RootLayout() {
   const user = useAuthStore((s) => s.firebaseUser);
   const authReady = useAuthStore((s) => s.ready);
   const hydrateTeam = useTeamStore((s) => s.hydrate);
+  const team = useTeamStore((s) => s.team);
+  const teamHydrated = useTeamStore((s) => s.hydrated);
   const hydrateSettings = useSettingsStore((s) => s.hydrate);
   const router = useRouter();
   const segments = useSegments();
@@ -37,8 +39,12 @@ export default function RootLayout() {
   }, [hydrateSettings, initAuth]);
 
   useEffect(() => {
-    if (!authReady || !user) return;
-    void hydrateTeam(user.uid);
+    if (!authReady) return;
+    if (user) {
+      void hydrateTeam(user.uid);
+    } else {
+      useTeamStore.getState().resetForSignOut();
+    }
   }, [authReady, user?.uid, hydrateTeam]);
 
   useEffect(() => {
@@ -55,12 +61,14 @@ export default function RootLayout() {
       if (!isVerifyScreen) {
         router.replace("/(auth)/verify-email");
       }
+    } else if (teamHydrated && !team && segments[0] === "(main)") {
+      router.replace("/onboarding/team-wizard");
     } else {
       if (inAuthGroup) {
-        router.replace("/(main)");
+        router.replace("/");
       }
     }
-  }, [user, user?.emailVerified, authReady, segments, router]);
+  }, [user, user?.emailVerified, authReady, segments, router, team, teamHydrated]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

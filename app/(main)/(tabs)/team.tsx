@@ -4,15 +4,19 @@ import { StemButton } from "@/components/ui/StemButton";
 import { StemCard } from "@/components/ui/StemCard";
 import { StemText } from "@/components/ui/StemText";
 import { useSpeech } from "@/hooks/useSpeech";
+import { isFirebaseConfigured } from "@/services/firebase/config";
+import { getLocalUserId } from "@/services/localIdentity";
+import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useStemTheme } from "@/theme/ThemeProvider";
 import { Profanity } from "@2toad/profanity";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -47,11 +51,15 @@ export default function TeamScreen() {
   const t = useStemTheme();
   const team = useTeamStore((s) => s.team);
   const hydrated = useTeamStore((s) => s.hydrated);
+  const createTeam = useTeamStore((s) => s.createTeam);
   const updateTeam = useTeamStore((s) => s.updateTeam);
+  const user = useAuthStore((s) => s.firebaseUser);
+  const refreshTeamId = useAuthStore((s) => s.refreshTeamId);
   const ttsEnabled = useSettingsStore((s) => s.ttsEnabled);
   const { speak, stop, isSpeaking, speakingId } = useSpeech();
 
-  console.log("[TeamScreen] render — hydrated:", hydrated, "team:", team);
+  const [isSaving, setIsSaving] = useState(false);
+  const hasTeam = !!team;
 
   const {
     control,
@@ -73,20 +81,11 @@ export default function TeamScreen() {
     }
   }, [team, reset]);
 
-  // still reading from AsyncStorage — show spinner
+  
   if (!hydrated) {
     return (
       <Screen>
         <ActivityIndicator size="large" color={t.colors.primary} />
-      </Screen>
-    );
-  }
-
-  // hydrated but genuinely no team exists yet
-  if (!team) {
-    return (
-      <Screen>
-        <StemText variant="body">No team profile yet.</StemText>
       </Screen>
     );
   }
@@ -97,41 +96,46 @@ export default function TeamScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <StemText variant="h1">Team profile</StemText>
+        <StemText variant="h1">
+          {hasTeam ? "Team profile" : "Create your team"}
+        </StemText>
 
-        <StemCard
-          title="Team code"
-          footer={
-            ttsEnabled ? (
-              <SpeakButton
-                id="team-code"
-                text={`Your team code is ${team.discriminator}. Share this code with your teacher to identify submissions.`}
-                isSpeaking={isSpeaking("team-code")}
-                onPress={() =>
-                  speak(
-                    "team-code",
-                    `Your team code is ${team.discriminator}. Share this code with your teacher to identify submissions.`
-                  )
-                }
-              />
-            ) : null
-          }
-        >
-          <StemText
-            variant="h2"
-            accessibilityLabel={`Team code ${team.discriminator}`}
+        {/* Only display the Team Code card if the team actually exists */}
+        {hasTeam && (
+          <StemCard
+            title="Team code"
+            footer={
+              ttsEnabled ? (
+                <SpeakButton
+                  id="team-code"
+                  text={`Your team code is ${team.discriminator}. Share this code with your teacher to identify submissions.`}
+                  isSpeaking={isSpeaking("team-code")}
+                  onPress={() =>
+                    speak(
+                      "team-code",
+                      `Your team code is ${team.discriminator}. Share this code with your teacher to identify submissions.`
+                    )
+                  }
+                />
+              ) : null
+            }
           >
-            {team.discriminator}
-          </StemText>
-          <StemText variant="small" style={{ color: t.colors.muted }}>
-            Share this code with your teacher to identify submissions.
-          </StemText>
-        </StemCard>
+            <StemText
+              variant="h2"
+              accessibilityLabel={`Team code ${team.discriminator}`}
+            >
+              {team.discriminator}
+            </StemText>
+            <StemText variant="small" style={{ color: t.colors.muted }}>
+              Share this code with your teacher to identify submissions.
+            </StemText>
+          </StemCard>
+        )}
 
         <StemCard
-          title="Edit team"
+          title={hasTeam ? "Edit team" : "Team details"}
           footer={
-            ttsEnabled ? (
+            ttsEnabled && hasTeam ? (
               <SpeakButton
                 id="team-info"
                 text={`Team name: ${team.name}. Grade level: ${team.gradeLevel}. Members: ${team.memberNames.join(", ")}.`}
@@ -225,17 +229,44 @@ export default function TeamScreen() {
           )}
 
           <StemButton
-            title="Save changes"
+            title={isSaving ? "Saving..." : hasTeam ? "Save changes" : "Create team"}
+            disabled={isSaving}
             style={{ marginTop: 16 }}
             onPress={handleSubmit(async (v) => {
-              await updateTeam({
-                name: v.name,
-                gradeLevel: v.gradeLevel,
-                memberNames: v.membersRaw
+              setIsSaving(true);
+              try {
+                const memberNames = v.membersRaw
                   .split(",")
                   .map((s) => s.trim())
-                  .filter(Boolean),
-              });
+                  .filter(Boolean);
+
+                if (hasTeam) {
+                  await updateTeam({
+                    name: v.name,
+                    gradeLevel: v.gradeLevel,
+                    memberNames,
+                  });
+                  Alert.alert("Success", "Changes saved successfully!");
+                } else {
+                  const uid = user?.uid ?? (await getLocalUserId());
+                  await createTeam({
+                    name: v.name,
+                    gradeLevel: v.gradeLevel,
+                    memberNames,
+                    uid,
+                    useRemote: isFirebaseConfigured(),
+                  });
+                  await refreshTeamId();
+                  Alert.alert("Success", "Team created successfully!");
+                }
+              } catch (error) {
+                Alert.alert(
+                  "Error",
+                  error instanceof Error ? error.message : "Something went wrong while saving your team.",
+                );
+              } finally {
+                setIsSaving(false);
+              }
             })}
           />
         </StemCard>

@@ -6,6 +6,7 @@ import {
   subscribeAuth,
 } from "@/services/firebase/authService";
 import { isFirebaseConfigured } from "@/services/firebase/config";
+import { useTeamStore } from "@/store/teamStore";
 import { router } from "expo-router";
 import type { User as FirebaseUser } from "firebase/auth";
 import { create } from "zustand";
@@ -71,9 +72,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       console.error("Sign out error:", error);
     } finally {
+      useTeamStore.getState().resetForSignOut();
       set({ firebaseUser: null, teamId: undefined });
-      // FORCE the redirect here
-      router.replace("/(auth)/sign-in"); 
+      router.replace("/(auth)/sign-in");
     }
   },
 
