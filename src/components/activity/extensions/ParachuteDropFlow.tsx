@@ -1,3 +1,4 @@
+import { CameraCaptureModal } from "@/components/activity/CameraCaptureModal";
 import { SpeakButton } from "@/components/ui/SpeakButton";
 import { StemButton } from "@/components/ui/StemButton";
 import { StemText } from "@/components/ui/StemText";
@@ -10,7 +11,8 @@ import {
     netForce,
 } from "@/lib/calculations/physics";
 import { useStemTheme } from "@/theme/ThemeProvider";
-import { useEffect, useRef, useState } from "react";
+import { ResizeMode, Video } from "expo-av";
+import { useRef, useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 
 
@@ -26,6 +28,7 @@ interface DropResult {
   massKg: number;
   prediction: string;
   wasRight: boolean | null;
+  dropVideoUri: string | null;
   // Calculated
   finalVelocity: number;
   acceleration: number;
@@ -34,7 +37,7 @@ interface DropResult {
   gForce: number | null;
 }
 
-type ActionStep = "predict" | "setup" | "drop" | "record_stop" | "compare";
+type ActionStep = "predict" | "record" | "review" | "record_stop" | "compare";
 
 // ── G-force risk levels ────────────────────────────────────────────────────────
 const GFORCE_LEVELS = [
@@ -50,37 +53,28 @@ function getGForceLevel(g: number) {
 }
 
 const MAX_ACTIONS = 3;
-const DESCRIPTION = "Drop a toy with and without a parachute. Record fall times, calculate forces, and compare designs.";
+const DESCRIPTION =
+  "Record each drop on video, play it back, then enter fall and stop times from the recording for accurate measurements.";
 
-// ── Drop Timer ─────────────────────────────────────────────────────────────────
-function useDropTimer() {
-  const [running, setRunning] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startAt = useRef(0);
+function DropVideoPlayer({ uri }: { uri: string }) {
+  const t = useStemTheme();
+  const videoRef = useRef<Video>(null);
 
-  const start = () => {
-    setElapsed(0);
-    setRunning(true);
-    startAt.current = Date.now();
-    intervalRef.current = setInterval(() => {
-      setElapsed(Date.now() - startAt.current);
-    }, 50);
-  };
-
-  const stop = (): number => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setRunning(false);
-    const ms = Date.now() - startAt.current;
-    setElapsed(ms);
-    return Math.round(ms) / 1000;
-  };
-
-  useEffect(() => {
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, []);
-
-  return { running, elapsed, start, stop };
+  return (
+    <View style={styles.videoWrap}>
+      <Video
+        ref={videoRef}
+        source={{ uri }}
+        style={styles.video}
+        useNativeControls
+        resizeMode={ResizeMode.CONTAIN}
+        shouldPlay={false}
+      />
+      <StemText variant="small" style={{ color: t.colors.muted, textAlign: "center" }}>
+        Pause at release and at ground contact to measure times accurately.
+      </StemText>
+    </View>
+  );
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────────
@@ -115,9 +109,10 @@ export function ParachuteDropFlow({
   const [bounced, setBounced] = useState(false);
   const [prediction, setPrediction] = useState("");
   const [wasRight, setWasRight] = useState<boolean | null>(null);
-  const [manualTime, setManualTime] = useState("");
+  const [groundTimeInput, setGroundTimeInput] = useState("");
+  const [dropVideoUri, setDropVideoUri] = useState<string | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
 
-  const dropTimer = useDropTimer();
   const actionNumber = actionIndex + 1;
 
   const resetAction = () => {
@@ -128,7 +123,8 @@ export function ParachuteDropFlow({
     setBounced(false);
     setPrediction("");
     setWasRight(null);
-    setManualTime("");
+    setGroundTimeInput("");
+    setDropVideoUri(null);
     setActionStep("predict");
   };
 
@@ -166,7 +162,7 @@ export function ParachuteDropFlow({
   const saveAction = () => {
     const height = parseFloat(dropHeightM) || 1.0;
     const mass = parseFloat(massKg) || 0.05;
-    const tGround = timeToGroundSec ?? parseFloat(manualTime) ?? 0;
+    const tGround = timeToGroundSec ?? parseFloat(groundTimeInput) ?? 0;
     const tStop = timeToStopSec ? parseFloat(timeToStopSec) : null;
     const impactV = finalVelocityFromHeight(height);
     const { finalV, accel, netF, dragF, gF } = computeResults(height, tGround, tStop, mass, bounced, impactV);
@@ -182,6 +178,7 @@ export function ParachuteDropFlow({
       massKg: mass,
       prediction,
       wasRight,
+      dropVideoUri,
       finalVelocity: finalV,
       acceleration: accel,
       netForce: netF,
@@ -200,6 +197,7 @@ export function ParachuteDropFlow({
       hasParachute: hasParachute ? "true" : "false",
       prototypeIndex: String(actionNumber),
       prediction,
+      dropVideoUri: dropVideoUri ?? "",
       allDrops: JSON.stringify(
         updated.map((r) => ({
           action: r.actionNumber,
@@ -210,6 +208,7 @@ export function ParachuteDropFlow({
           timeToStopSec: r.timeToStopSec,
           bounced: r.bounced,
           massKg: r.massKg,
+          dropVideoUri: r.dropVideoUri,
           finalVelocity: r.finalVelocity,
           acceleration: r.acceleration,
           netForce: r.netForce,
@@ -244,6 +243,12 @@ export function ParachuteDropFlow({
             onPress={() => speak("para-desc", DESCRIPTION)}
           />
         )}
+        <View style={[styles.infoBox, { backgroundColor: t.colors.card }]}>
+          <StemText variant="small" style={{ fontWeight: "bold" }}>How it works:</StemText>
+          <StemText variant="small" style={{ color: t.colors.muted }}>1. Set up and predict</StemText>
+          <StemText variant="small" style={{ color: t.colors.muted }}>2. Record the drop on video</StemText>
+          <StemText variant="small" style={{ color: t.colors.muted }}>3. Play back the video and enter times</StemText>
+        </View>
         <View style={[styles.infoBox, { backgroundColor: t.colors.card }]}>
           <StemText variant="small" style={{ fontWeight: "bold" }}>3 actions:</StemText>
           <StemText variant="small" style={{ color: t.colors.muted }}>Action 1 — No parachute (baseline)</StemText>
@@ -490,18 +495,18 @@ export function ParachuteDropFlow({
           )}
 
           <StemButton
-            title="Ready to drop →"
-            onPress={() => setActionStep("drop")}
+            title="Ready to record →"
+            onPress={() => setActionStep("record")}
             disabled={prediction.trim().length === 0}
           />
         </View>
       )}
 
-      {/* ── Step 2: Drop + Time ── */}
-      {actionStep === "drop" && (
+      {/* ── Step 2: Record drop video ── */}
+      {actionStep === "record" && (
         <View style={[styles.stepBox, { borderColor: t.colors.border }]}>
           <StemText variant="body" style={{ fontWeight: "bold" }}>
-            Step 2 — Drop & Time ⏱️
+            Step 2 — Record the drop 🎥
           </StemText>
 
           <View style={[styles.infoBox, { backgroundColor: t.colors.card }]}>
@@ -515,33 +520,64 @@ export function ParachuteDropFlow({
 
           <StemText variant="small" style={{ color: t.colors.muted }}>
             {simple
-              ? "Press START just before you drop the toy. Press STOP when it hits the ground."
-              : "Press START just before release. Press STOP the moment it first hits the ground. Do not throw — just drop."}
+              ? "Film the full drop from release to landing. You will watch the video back in the next step to enter the fall time."
+              : "Film the full drop from release through landing and stopping. Use slow-motion if your phone supports it. You will measure times from the playback in the next step."}
           </StemText>
 
-          {/* Timer */}
-          {!dropTimer.running && timeToGroundSec == null && (
-            <StemButton title="▶ Start timer" onPress={dropTimer.start} />
-          )}
-
-          {dropTimer.running && (
-            <View style={[styles.timerBox, { borderColor: t.colors.primary, backgroundColor: t.colors.primary + "18" }]}>
-              <StemText variant="h1" style={{ color: t.colors.primary, textAlign: "center", fontSize: 52 }}>
-                {(dropTimer.elapsed / 1000).toFixed(2)}s
+          {dropVideoUri ? (
+            <View style={[styles.infoBox, { backgroundColor: t.colors.success + "18", borderColor: t.colors.success, borderWidth: 1 }]}>
+              <StemText variant="small" style={{ color: t.colors.success, fontWeight: "bold" }}>
+                ✅ Video recorded
               </StemText>
-              <StemButton
-                title="⏹ Hit ground!"
-                onPress={() => {
-                  const secs = dropTimer.stop();
-                  setTimeToGroundSec(secs);
-                }}
-              />
+              <DropVideoPlayer uri={dropVideoUri} />
+              <StemButton title="Re-record video" variant="secondary" onPress={() => setShowCamera(true)} />
             </View>
+          ) : (
+            <StemButton title="🎥 Record drop video" onPress={() => setShowCamera(true)} />
           )}
 
-          {timeToGroundSec != null && (
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <StemButton title="← Back" variant="ghost" onPress={() => setActionStep("predict")} />
+            <StemButton
+              title="Review video →"
+              onPress={() => setActionStep("review")}
+              disabled={!dropVideoUri}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* ── Step 3: Review video & enter times ── */}
+      {actionStep === "review" && dropVideoUri && (
+        <View style={[styles.stepBox, { borderColor: t.colors.border }]}>
+          <StemText variant="body" style={{ fontWeight: "bold" }}>
+            Step 3 — Review & measure ⏱️
+          </StemText>
+
+          <StemText variant="small" style={{ color: t.colors.muted }}>
+            Play your recording. Pause at the moment of release and at first ground contact, then enter the time to ground below.
+            {simple ? "" : " Tip: slow-motion makes this easier to read."}
+          </StemText>
+
+          <DropVideoPlayer uri={dropVideoUri} />
+
+          <StemText variant="small" style={{ color: t.colors.muted }}>Time to first ground contact (s):</StemText>
+          <TextInput
+            style={[styles.input, { borderColor: t.colors.border, color: t.colors.text, backgroundColor: t.colors.card }]}
+            placeholder="e.g. 1.23"
+            placeholderTextColor={t.colors.muted}
+            value={groundTimeInput}
+            onChangeText={(v) => {
+              setGroundTimeInput(v);
+              const parsed = parseFloat(v);
+              setTimeToGroundSec(Number.isFinite(parsed) ? parsed : null);
+            }}
+            keyboardType="decimal-pad"
+          />
+
+          {timeToGroundSec != null && timeToGroundSec > 0 && (
             <View style={[styles.timerBox, { borderColor: t.colors.success, backgroundColor: t.colors.success + "18" }]}>
-              <StemText variant="h1" style={{ color: t.colors.success, textAlign: "center", fontSize: 52 }}>
+              <StemText variant="h1" style={{ color: t.colors.success, textAlign: "center", fontSize: 40 }}>
                 {timeToGroundSec}s
               </StemText>
               <StemText variant="small" style={{ color: t.colors.success, textAlign: "center" }}>
@@ -550,44 +586,28 @@ export function ParachuteDropFlow({
             </View>
           )}
 
-          {/* Manual time entry fallback */}
-          {timeToGroundSec == null && !dropTimer.running && (
-            <>
-              <StemText variant="small" style={{ color: t.colors.muted }}>Or enter time manually:</StemText>
-              <TextInput
-                style={[styles.input, { borderColor: t.colors.border, color: t.colors.text, backgroundColor: t.colors.card }]}
-                placeholder="e.g. 1.2"
-                placeholderTextColor={t.colors.muted}
-                value={manualTime}
-                onChangeText={setManualTime}
-                keyboardType="decimal-pad"
-              />
-            </>
-          )}
-
-          {(timeToGroundSec != null || manualTime.trim().length > 0) && (
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <StemButton title="← Re-record" variant="ghost" onPress={() => setActionStep("record")} />
             <StemButton
-              title={simple ? "Continue →" : "Record stop time →"}
-              onPress={() => {
-                if (manualTime && timeToGroundSec == null) {
-                  setTimeToGroundSec(parseFloat(manualTime));
-                }
-                setActionStep(simple ? "compare" : "record_stop");
-              }}
+              title={simple ? "Compare result →" : "Measure stop time →"}
+              onPress={() => setActionStep(simple ? "compare" : "record_stop")}
+              disabled={timeToGroundSec == null || timeToGroundSec <= 0}
             />
-          )}
+          </View>
         </View>
       )}
 
-      {/* ── Step 2b: Record stop time (advanced + slow-mo) ── */}
-      {actionStep === "record_stop" && !simple && (
+      {/* ── Step 3b: Record stop time from video (advanced) ── */}
+      {actionStep === "record_stop" && !simple && dropVideoUri && (
         <View style={[styles.stepBox, { borderColor: t.colors.border }]}>
           <StemText variant="body" style={{ fontWeight: "bold" }}>
-            Step 2b — Slow-Motion Stop Time 🎬
+            Step 3b — Stop time from video 🎬
           </StemText>
           <StemText variant="small" style={{ color: t.colors.muted }}>
-            Using slow-motion video, measure the time from first ground contact until the toy stops moving.
+            Watch the playback again. Measure the time from first ground contact until the toy stops moving (or reaches max height after a bounce).
           </StemText>
+
+          <DropVideoPlayer uri={dropVideoUri} />
 
           {/* Bounce or no bounce */}
           <StemText variant="small" style={{ color: t.colors.muted }}>Did the toy bounce?</StemText>
@@ -646,18 +666,21 @@ export function ParachuteDropFlow({
           )}
 
           <View style={{ flexDirection: "row", gap: 8 }}>
+            <StemButton title="← Back" variant="ghost" onPress={() => setActionStep("review")} />
             <StemButton title="Skip →" variant="ghost" onPress={() => setActionStep("compare")} />
             <StemButton title="Compare result →" onPress={() => setActionStep("compare")} />
           </View>
         </View>
       )}
 
-      {/* ── Step 3: Compare ── */}
+      {/* ── Step 4: Compare ── */}
       {actionStep === "compare" && timeToGroundSec != null && (
         <View style={[styles.stepBox, { borderColor: t.colors.border }]}>
           <StemText variant="body" style={{ fontWeight: "bold" }}>
-            Step 3 — Were you right? 🎯
+            Step {simple ? "4" : "5"} — Were you right? 🎯
           </StemText>
+
+          {dropVideoUri && <DropVideoPlayer uri={dropVideoUri} />}
 
           <View style={styles.compareRow}>
             <View style={[styles.compareBox, { borderColor: t.colors.border, backgroundColor: t.colors.card }]}>
@@ -713,6 +736,16 @@ export function ParachuteDropFlow({
           ))}
         </View>
       )}
+
+      <CameraCaptureModal
+        visible={showCamera}
+        mode="video"
+        onClose={() => setShowCamera(false)}
+        onCaptured={(uri) => {
+          setDropVideoUri(uri);
+          onUpdate({ dropVideoUri: uri });
+        }}
+      />
     </View>
   );
 }
@@ -760,6 +793,16 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: "center",
     gap: 8,
+  },
+  videoWrap: {
+    gap: 8,
+    width: "100%",
+  },
+  video: {
+    width: "100%",
+    height: 200,
+    borderRadius: 8,
+    backgroundColor: "#000",
   },
   calcPreview: {
     borderRadius: 8,

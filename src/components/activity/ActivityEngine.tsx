@@ -550,11 +550,13 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
         </StemCard>
       ))}
 
+      {config.customFields.length > 0 && (
       <StemCard title={simple ? "Your measurements" : "Measurements"}>
         {config.customFields.map((f) => (
           <FieldEditor key={f.id} f={f} simple={simple} control={control} colors={t.colors} />
         ))}
       </StemCard>
+      )}
 
       {config.mediaRequirements.length > 0 && (
       <StemCard title={simple ? "Photos & videos" : "Media evidence"}>
