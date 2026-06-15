@@ -6,30 +6,46 @@ import { useStemTheme } from "@/theme/ThemeProvider";
 import { useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 
+// ── Spec table: Earthquake Magnitude and Structural Risk ─────────────────────
+const MAGNITUDE_LEVELS = [
+  { min: 0.0, max: 1.5, label: "Micro — Generally not felt; structure is ultra-stable", color: "#4ade80", emoji: "🏆" },
+  { min: 1.5, max: 2.5, label: "Minor — Felt by very few; structural design is safe",   color: "#86efac", emoji: "✅" },
+  { min: 2.5, max: 4.0, label: "Light — Noticeable shaking indoors; moderate movement",  color: "#fde68a", emoji: "⚠️" },
+  { min: 4.0, max: 5.5, label: "Moderate — Hanging objects swing; structure under stress",color: "#fb923c", emoji: "📳" },
+  { min: 5.5, max: 7.0, label: "Strong — Wall cracks possible; severe risk to building", color: "#ef4444", emoji: "🔴" },
+  { min: 7.0, max: Infinity, label: "Major — Severe damage or structural failure imminent", color: "#dc2626", emoji: "🚨" },
+];
+
+function getRating(mag: number) {
+  return MAGNITUDE_LEVELS.find((r) => mag >= r.min && mag < r.max) ?? MAGNITUDE_LEVELS[0];
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface DesignResult {
   designNumber: number;
   folds: number;
   pillars: number;
-  peakMag: number;
+  peakMag: number; 
   rating: string;
   ratingColor: string;
 }
 
-// ── Vibration rating ───────────────────────────────────────────────────────────
-function getRating(mag: number): { label: string; color: string; emoji: string } {
-  const movement = Math.max(0, mag - 1.0);
-  if (movement < 0.2)  return { label: "Very stable", color: "#4ade80", emoji: "🏆" };
-  if (movement < 0.5)  return { label: "Stable",      color: "#86efac", emoji: "✅" };
-  if (movement < 0.9)  return { label: "Moderate",    color: "#fde68a", emoji: "⚠️" };
-  if (movement < 1.5)  return { label: "Shaky",       color: "#fb923c", emoji: "📳" };
-  return                      { label: "Very shaky",  color: "#ef4444", emoji: "🔴" };
+// ── Convert G-Force to Earthquake Magnitude ────────────────────────────────────
+function convertGToMagnitude(gForce: number): number {
+  const pga = Math.max(0, gForce - 1.0);
+  if (pga <= 0) return 0;
+  
+  // Magnitude = log10(PGA in %g) * 1.5
+  const pgaPercent = pga * 100;
+  const mag = Math.log10(pgaPercent) * 1.5;
+
+  return Math.min(10, Math.max(0, Math.round(mag * 10) / 10));
 }
 
 const MAX_DESIGNS = 3;
 
 const DESCRIPTION =
-  "Build an anti-vibration structure, place the phone on top, then shake the table to simulate an earthquake. Lower vibration means a better design.";
+  "Build an anti-vibration structure, place the phone on top, then shake the table to simulate an earthquake. Lower magnitude means a better design.";
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 export function EarthquakeFlow({
@@ -56,32 +72,35 @@ export function EarthquakeFlow({
 
   const isWebUnsupported = Platform.OS === "web";
 
+  // Calculate magnitude from live or recorded max magnitude
+  const currentMagnitude = accel.maxMag != null ? convertGToMagnitude(accel.maxMag) : 0;
+
   const saveDesign = () => {
     if (accel.maxMag == null) return;
-    const rating = getRating(accel.maxMag);
+    
+    const calculatedMag = convertGToMagnitude(accel.maxMag);
+    const rating = getRating(calculatedMag);
+    
     const result: DesignResult = {
       designNumber: currentDesign,
       folds,
       pillars,
-      peakMag: accel.maxMag,
+      peakMag: calculatedMag,
       rating: rating.label,
       ratingColor: rating.color,
     };
 
     const updated = [...designs, result];
     setDesigns(updated);
-
-    // this to save to activity engine
     
     const best = updated.reduce((a, b) => (a.peakMag < b.peakMag ? a : b));
-    // Inside saveDesign, change your multiplier to 100
-    const rawMovement = Math.max(0, best.peakMag - 1.0);
 
-    const calculatedScore = Math.min(10, Math.round(rawMovement * 6.66));
+    // Calculate a relative structural score from 0-10 based on how well it mitigated shaking
+    const calculatedScore = Math.min(10, Math.max(0, Math.round(10 - best.peakMag)));
 
     onUpdate({
-      accelMagnitudeMax: Math.round(best.peakMag * 1000) / 1000,
-      movementAmount: calculatedScore, // This will now safely be 10 instead of 377!
+      accelMagnitudeMax: best.peakMag, // Now cleanly outputs converted magnitude (e.g. 3.4)
+      movementAmount: calculatedScore, 
       foldCount: best.folds,
       pillarCount: best.pillars,
     });
@@ -103,7 +122,7 @@ export function EarthquakeFlow({
     setDone(false);
   };
 
-  const currentRating = accel.maxMag != null ? getRating(accel.maxMag) : null;
+  const currentRating = accel.maxMag != null ? getRating(currentMagnitude) : null;
 
   // ── Done screen ──────────────────────────────────────────────────────────────
   if (done) {
@@ -117,7 +136,7 @@ export function EarthquakeFlow({
           <StemText variant="small" style={[styles.colDesign, styles.bold]}>Design</StemText>
           <StemText variant="small" style={[styles.colFolds, styles.bold]}>Folds</StemText>
           <StemText variant="small" style={[styles.colFolds, styles.bold]}>Pillars</StemText>
-          <StemText variant="small" style={[styles.colMag, styles.bold]}>Peak (G)</StemText>
+          <StemText variant="small" style={[styles.colMag, styles.bold]}>Mag (M)</StemText>
           <StemText variant="small" style={[styles.colRating, styles.bold]}>Rating</StemText>
         </View>
         {designs.map((d, i) => {
@@ -132,13 +151,15 @@ export function EarthquakeFlow({
                 isBest && { backgroundColor: t.colors.success + "11" },
               ]}
             >
-              <StemText variant="small" style={styles.colDesign}>
-                {isBest ? "🏆" : `D${d.designNumber}`}
-              </StemText>
+              <View style={styles.colDesign}>
+                <StemText variant="small">
+                  {isBest ? "🏆" : `D${d.designNumber}`}
+                </StemText>
+              </View>
               <StemText variant="small" style={styles.colFolds}>{d.folds}</StemText>
               <StemText variant="small" style={styles.colFolds}>{d.pillars}</StemText>
               <StemText variant="small" style={[styles.colMag, { color: r.color, fontWeight: "bold" }]}>
-                {d.peakMag.toFixed(3)}
+                M {d.peakMag.toFixed(1)}
               </StemText>
               <StemText variant="small" style={[styles.colRating, { color: r.color }]}>
                 {r.emoji} {r.label}
@@ -148,7 +169,7 @@ export function EarthquakeFlow({
         })}
 
         <StemText variant="small" style={{ color: t.colors.success, marginTop: 8 }}>
-          🏆 Best design: Design {best.designNumber} ({best.folds} folds, {best.pillars} pillars) — {best.peakMag.toFixed(3)} G
+          🏆 Best design: Design {best.designNumber} ({best.folds} folds, {best.pillars} pillars) — Magnitude {best.peakMag.toFixed(1)}
         </StemText>
 
         <StemButton title="Start over" variant="secondary" onPress={reset} />
@@ -174,6 +195,23 @@ export function EarthquakeFlow({
           onPress={() => speak("earthquake-desc", DESCRIPTION)}
         />
       )}
+
+      {/* ── Spec Magnitude reference table ── */}
+      <View style={{ marginTop: 16 }}>
+        <StemText variant="body" style={{ fontWeight: "bold", marginBottom: 4 }}>
+          Earthquake Magnitude & Risk Reference
+        </StemText>
+        {MAGNITUDE_LEVELS.map((r, i) => (
+          <View key={i} style={[styles.riskRow, { borderLeftColor: r.color }]}>
+            <StemText variant="small" style={{ color: r.color, fontWeight: "bold", width: 90 }}>
+              M {r.min.toFixed(1)}–{r.max === Infinity ? "10+" : r.max.toFixed(1)}
+            </StemText>
+            <StemText variant="small" style={{ flex: 1, color: t.colors.text }}>
+              {r.emoji} {r.label}
+            </StemText>
+          </View>
+        ))}
+      </View>
 
       {/* Design progress */}
       <View style={[styles.progressBar, { backgroundColor: t.colors.card }]}>
@@ -230,7 +268,7 @@ export function EarthquakeFlow({
       {accel.maxMag != null && currentRating && (
         <View style={[styles.resultBox, { borderColor: currentRating.color, backgroundColor: currentRating.color + "18" }]}>
           <StemText variant="h1" style={{ color: currentRating.color, textAlign: "center", fontSize: 44 }}>
-            {accel.maxMag.toFixed(3)} G
+            M {currentMagnitude.toFixed(1)}
           </StemText>
           <StemText variant="small" style={{ color: currentRating.color, textAlign: "center" }}>
             {currentRating.emoji} {currentRating.label}
@@ -284,7 +322,7 @@ export function EarthquakeFlow({
             const r = getRating(d.peakMag);
             return (
               <StemText key={i} variant="small" style={{ color: r.color }}>
-                {r.emoji} Design {d.designNumber}: {d.folds} folds, {d.pillars} pillars → {d.peakMag.toFixed(3)} G — {r.label}
+                {r.emoji} Design {d.designNumber}: {d.folds} folds, {d.pillars} pillars → Magnitude {d.peakMag.toFixed(1)} — {r.label}
               </StemText>
             );
           })}
@@ -351,4 +389,13 @@ const styles = StyleSheet.create({
   colMag: { width: 70, textAlign: "center" },
   colRating: { flex: 1 },
   bold: { fontWeight: "bold" },
+  riskRow: {
+    flexDirection: "row",
+    borderLeftWidth: 3,
+    paddingLeft: 8,
+    paddingVertical: 3,
+    gap: 6,
+    alignItems: "flex-start",
+    marginBottom: 2,
+  },
 });

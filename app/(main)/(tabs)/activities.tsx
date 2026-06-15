@@ -7,6 +7,7 @@ import { SyncStatusBadge } from "@/components/ui/SyncStatusBadge";
 import { useSpeech } from "@/hooks/useSpeech";
 import { href } from "@/navigation/href";
 import { listLocalAttempts } from "@/services/sqlite/attemptsLocal";
+import { useNotificationStore } from "@/store/notificationStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useStemTheme } from "@/theme/ThemeProvider";
@@ -20,6 +21,8 @@ export default function ActivitiesScreen() {
   const router = useRouter();
   const team = useTeamStore((s) => s.team);
   const ttsEnabled = useSettingsStore((s) => s.ttsEnabled);
+  const bannerMessage = useNotificationStore((s) => s.bannerMessage);
+  const clearBanner = useNotificationStore((s) => s.clearBanner);
   const { speak, stop, isSpeaking, speakingId } = useSpeech();
   const [byActivity, setByActivity] = useState<Record<string, ActivityAttempt[]>>({});
 
@@ -38,8 +41,28 @@ export default function ActivitiesScreen() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!bannerMessage) return;
+    const timer = setTimeout(() => clearBanner(), 3000);
+    return () => clearTimeout(timer);
+  }, [bannerMessage, clearBanner]);
+
   return (
     <Screen>
+      {bannerMessage && (
+        <View
+          style={[
+            styles.notice,
+            { backgroundColor: t.colors.success, borderColor: t.colors.success },
+          ]}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+        >
+          <StemText variant="body" style={{ color: "#fff", fontWeight: "700" }}>
+            {bannerMessage}
+          </StemText>
+        </View>
+      )}
       <StemText variant="h1">Activities</StemText>
       <StemText variant="small" style={{ color: t.colors.muted, marginBottom: 12 }}>
         Each challenge uses the same save, upload, and reflection flow.
@@ -113,6 +136,13 @@ export default function ActivitiesScreen() {
 }
 
 const styles = StyleSheet.create({
+  notice: {
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
   stopAll: {
     backgroundColor: "#555",
     borderRadius: 10,

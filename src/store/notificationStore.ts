@@ -7,13 +7,17 @@ function localId() {
 
 interface NotificationState {
   items: AppNotification[];
+  bannerMessage: string | null;
   pushLocal: (n: Omit<AppNotification, "id" | "read" | "createdAt" | "userId"> & { userId?: string }) => void;
+  showBanner: (message: string) => void;
+  clearBanner: () => void;
   markRead: (id: string) => void;
   clear: () => void;
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   items: [],
+  bannerMessage: null,
 
   pushLocal: (n) => {
     const item: AppNotification = {
@@ -28,6 +32,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     };
     set({ items: [item, ...get().items].slice(0, 100) });
   },
+
+  showBanner: (message) => set({ bannerMessage: message }),
+
+  clearBanner: () => set({ bannerMessage: null }),
 
   markRead: (id) => {
     set({

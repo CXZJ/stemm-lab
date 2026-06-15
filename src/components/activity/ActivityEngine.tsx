@@ -21,6 +21,7 @@ import { newId } from "@/lib/id";
 import { href } from "@/navigation/href";
 import { getLocalAttempt, upsertLocalAttempt } from "@/services/sqlite/attemptsLocal";
 import { useAuthStore } from "@/store/authStore";
+import { useNotificationStore } from "@/store/notificationStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTeamStore } from "@/store/teamStore";
 import { useStemTheme } from "@/theme/ThemeProvider";
@@ -311,6 +312,13 @@ export function ActivityEngine({ activityId }: { activityId: string }) {
       payload: partial,
       syncStatus: "local_only",
     });
+    useNotificationStore.getState().pushLocal({
+      title: "Saved draft",
+      body: "Your activity progress was saved on this device.",
+      type: "reminder",
+    });
+    useNotificationStore.getState().showBanner("Saved draft");
+    router.dismissTo(href("/(main)/(tabs)/activities"));
   });
 
   const onSubmit = handleSubmit(async (raw) => {
