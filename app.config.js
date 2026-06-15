@@ -136,8 +136,7 @@ module.exports = ({ config }) => ({
   extra: {
     router: {},
     eas: {
-      projectId:
-        process.env.EAS_PROJECT_ID ?? "9ec7891e-78e2-42fc-b9b0-68afaa8bb782",
+      projectId: "91717002-0a4e-4538-bc94-9114f590e6d3",
     },
     /** Mirrored from EXPO_PUBLIC_FIREBASE_* so the app reads config even if Metro omits env inlining. */
     firebase: firebaseExtra(),
